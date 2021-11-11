@@ -1,11 +1,13 @@
 import logging
 from collections import namedtuple
 from os.path import split as pathsplit
+from math import floor
 
 log = logging.getLogger(__name__)
 
 #########
 ### https://github.com/EzraBC/pgsreader/blob/master/pgsreader.py
+### http://blog.thescorpius.com/index.php/2017/07/15/presentation-graphic-stream-sup-files-bluray-subtitle-format/
 #########
 
 # Constants for Segments
@@ -23,11 +25,21 @@ class InvalidSegmentError(Exception):
     '''Raised when a segment does not match PGS specification'''
 
 
+def mseg_srt(msc):
+    sec = floor(msc / 1000)
+    mnt = floor(sec / 60)
+    hou = floor(mnt / 60)
+    msc = int(msc % 1000)
+    sec = sec % 60
+    mnt = mnt % 60
+    stt = "{:02d}:{:02d}:{:02d},{:03d}".format(hou, mnt, sec, msc)
+    return stt
+
 class PGSReader:
 
     def __init__(self, filepath):
-        self.filedir, self.file = pathsplit(filepath)
-        with open(filepath, 'rb') as f:
+        self.file = filepath
+        with open(self.file, 'rb') as f:
             self.bytes = f.read()
 
     def make_segment(self, bytes_):
@@ -61,6 +73,31 @@ class PGSReader:
             self._displaysets = list(self.iter_displaysets())
         return self._displaysets
 
+    def get_times(self):
+        seg = list()
+        for i, ds in enumerate(self.displaysets):
+            sg = ds.segments
+            if ds.ods:
+                sg = ds.ods
+            t = min(s.presentation_timestamp for s in sg)
+            seg.append((t, ds.has_image))
+        seg = sorted(set(seg))
+        tms = []
+        for i, (t, ods) in enumerate(seg):
+            if ods:
+                tms.append((t, seg[i+1][0]-1))
+        tms = tuple(tms)
+        return tms
+
+    def fake_srt(self, file=None):
+        if file is None:
+            file = self.file.rsplit(".", 1)[0]+".srt"
+        with open(file, "w") as f:
+            for (i, (s, e)) in enumerate(self.get_times()):
+                f.write("{}\n".format(i+1))
+                f.write("{} --> {}\n".format(mseg_srt(s), mseg_srt(e)))
+                f.write("Line {}\n\n".format(i))
+        return file
 
 class BaseSegment:
     SEGMENT = {

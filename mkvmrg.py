@@ -7,6 +7,7 @@ from core.mkv import MkvMerge
 from core.shell import Shell
 from core.sub import Sub
 from core.track import MKVLANG
+from core.pgsreader import PGSReader
 
 
 def parse_track(tracks):
@@ -26,10 +27,15 @@ if __name__ == "__main__":
     if len(sys.argv) == 2:
         fln = sys.argv[1]
         ext = fln.rsplit(".", 1)[-1].lower()
-        if isfile(fln) and ext in ("srt", "ssa", "ass"):
-            out = Sub(fln).save("srt")
-            print("OUT:", out)
-            sys.exit()
+        if isfile(fln):
+            if ext in ("srt", "ssa", "ass"):
+                out = Sub(fln).save("srt")
+                print("OUT:", out)
+                sys.exit()
+            if ext in ("sup", "pgs"):
+                print("OUT:", PGSReader(fln).fake_srt())
+                sys.exit()
+
     if len(sys.argv) > 2 and sys.argv[1] == "info":
         print("[spoiler=mediainfo][code]", end="")
         fls = sys.argv[2:]

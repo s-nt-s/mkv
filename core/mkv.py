@@ -194,7 +194,7 @@ class Mkv:
                     if not s.text_subtitles:
                         if f.endswith(".pgs"):
                             pgs = PGSReader(f)
-                            dss = list(ds for ds in pgs.iter_displaysets() if ds.has_image)
+                            dss = list(ds for ds in pgs.displaysets if ds.has_image)
                             s.lines = len(dss)
                         continue
                     sb = Sub(f)
