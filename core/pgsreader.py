@@ -86,7 +86,7 @@ class PGSReader:
         for i, (t, ods) in enumerate(seg):
             if ods:
                 tms.append((t, seg[i+1][0]-1))
-        tms = tuple(tms)
+        tms = tuple(sorted(set(tms)))
         return tms
 
     def fake_srt(self, file=None):
