@@ -299,11 +299,12 @@ class Mkv:
                     self.ban.attachments.add(a.id)
                     print("# RM {}:{id}:{content_type} {file_name} por tipo o falta de subtitulos != srt".format(
                         self.source, **a))
-                elif a.font is not None and a.font not in fonts:
-                    self.ban.attachments.add(a.id)
-                    print(
-                        "# RM {}:{id}:{content_type} {file_name} {font} por no usarse en subtitulos".format(self.source,
-                                                                                                            **a))
+                elif a.font is not None:
+                    sp_font = a.font.split()
+                    sp_font = [" ".join(sp_font[:i]) for i in range(1, len(sp_font) + 1)]
+                    if not fonts.intersection(sp_font):
+                        self.ban.attachments.add(a.id)
+                        print("# RM {}:{id}:{content_type} {file_name} {font} por no usarse en subtitulos".format(self.source, **a))
 
         return self._core.ban
 
