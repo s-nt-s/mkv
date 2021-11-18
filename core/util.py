@@ -74,3 +74,12 @@ def get_title(file: str) -> str:
     if year:
         title = title + " ({})".format(year)
     return title
+
+
+def trim(s):
+    if s is None:
+        return None
+    s = s.strip()
+    if len(s) == 0:
+        return None
+    return s

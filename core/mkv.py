@@ -7,7 +7,6 @@ from os.path import basename
 import xmltodict
 from munch import DefaultMunch, Munch
 
-from .pgsreader import PGSReader
 from .shell import Shell, Args
 from .sub import Sub
 from .track import Track
@@ -191,16 +190,7 @@ class Mkv:
             fls = self.extract(*sub_trck, *att_font, stdout=subprocess.DEVNULL)
             for f, s in zip(fls, sub_trck + att_font):
                 if isinstance(s, Track):
-                    if not s.text_subtitles:
-                        if f.endswith(".pgs"):
-                            pgs = PGSReader(f)
-                            dss = list(ds for ds in pgs.displaysets if ds.has_image)
-                            s.lines = len(dss)
-                        continue
-                    sb = Sub(f)
-                    s.fonts = sb.fonts
-                    lines = len(sb.load("srt"))
-                    s.lines = lines
+                    s.source_file = f
                 else:
                     out = Shell.safe_get("otfinfo", "--info", f, do_print=False, stderr=subprocess.DEVNULL)
                     if out is None:
@@ -228,7 +218,7 @@ class Mkv:
                             s.forced_track = 1
                             forced_done = True
                     if forced_done is False:
-                        subs = [s for s in subs if s.get('lines') is not None]
+                        subs = [s for s in subs if s.lines is not None]
                         if len(subs) > 0:
                             max_forced = self.duration.minutes
                             if len(subs) > 1:
@@ -479,7 +469,7 @@ class MkvMerge:
         main_lang = tuple(sorted(main_lang))
 
         indx_s = lambda x, *arr: arr.index(x) if x in arr else len(arr)
-        sort_s = lambda x: (x.source, -x.get('lines', 0), x.number)
+        sort_s = lambda x: (x.source, -(x.lines or 0), x.number)
         orde = sorted(self.get_tracks('video', src), key=sort_s)
         aux = Munch(
             es=[],
@@ -504,7 +494,7 @@ class MkvMerge:
 
         hasAudEs = bool(len(aux.es))
 
-        sort_s = lambda x: (x.source, -x.get('lines', 0), x.number)
+        sort_s = lambda x: (x.source, -(x.lines or 0), x.number)
         aux = Munch(
             es_ful=[],
             es_for=[],
@@ -540,7 +530,7 @@ class MkvMerge:
         defSub = None
         if hasAudEs and aux.es_for:
             defSub = aux.es_for[0]
-        elif not (hasAudEs) and aux.es_ful:
+        elif not hasAudEs and aux.es_ful:
             defSub = aux.es_ful[0]
 
         defTrack = set()
@@ -585,7 +575,7 @@ class MkvMerge:
             if re.search(r"\b(forzados?)\b", lw_name) or st_name.intersection({"forzados", "forzado"}):
                 track.forced_track = 1
         if track.type == 'subtitles':
-            track.lines = len(Sub(file).load("srt"))
+            track.text_subtitles = True
         if len(nf.get("chapters", [])) == 1 and nf.chapters[0].num_entries == 1:
             track.rm_chapters = True
         if track.track_name is None:

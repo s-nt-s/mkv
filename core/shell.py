@@ -46,7 +46,7 @@ class Shell:
                     a = "\\\n  " + a
                 elif isfile(args[index - 1]) and a != "--title":
                     a = "\\\n  " + a
-                elif a.startswith("--") and index > 0 and index < len(args) - 1 and not a == "--sub-charset":
+                elif a.startswith("--") and 0 < index < len(args) - 1 and not a == "--sub-charset":
                     m1 = re_track.match(args[index - 1])
                     m2 = re_track.match(args[index + 1])
                     if m1:
@@ -59,16 +59,16 @@ class Shell:
         return " ".join(arr)
 
     @staticmethod
-    def run(*args: str, do_print: bool = True, **kargv) -> int:
-        if (do_print, kargv.get("stdout") == subprocess.DEVNULL) == (True, False):
+    def run(*args: str, do_print: bool = True, **kwargs) -> int:
+        if (do_print, kwargs.get("stdout") == subprocess.DEVNULL) == (True, False):
             print("$", Shell.to_str(*args))
-        out = subprocess.call(args, **kargv)
+        out = subprocess.call(args, **kwargs)
         return out
 
     @staticmethod
-    def safe_get(*args, **kargv) -> int:
+    def safe_get(*args, **kwargs) -> int:
         try:
-            return Shell.get(*args, **kargv)
+            return Shell.get(*args, **kwargs)
         except subprocess.CalledProcessError:
             pass
         return None
@@ -82,22 +82,22 @@ class Shell:
         return output
 
     @staticmethod
-    def mkvinfo(file, **kargv) -> Munch:
+    def mkvinfo(file, **kwargs) -> Munch:
         arr = Args()
         arr.extend("mkvmerge -F json --identify")
         arr.append(file)
-        js = Shell.get(*arr, **kargv)
+        js = Shell.get(*arr, **kwargs)
         js = json.loads(js)
         js = DefaultMunch.fromDict(js)
         return js
 
     @staticmethod
-    def mediainfo(file):
+    def mediainfo(file, **kwargs):
         cwd = getcwd()
         dr = dirname(file)
         if dr:
             chdir(dr)
-        out = Shell.get("mediainfo", basename(file), do_print=False)
+        out = Shell.get("mediainfo", basename(file), **kwargs)
         chdir(cwd)
         out = out.strip()
         arr = []

@@ -1,21 +1,18 @@
 import re
 
 from munch import DefaultMunch
+from os.path import isfile
 
 from .shell import Shell
-from .util import LANG_ES
+from .util import LANG_ES, trim
+from .sub import Sub
+from .pgsreader import PGSReader
 
 re_doblage = re.compile(r"((?:19|20)\d\d+)", re.IGNORECASE)
 
 
 class MkvLang:
     def __init__(self):
-        def trim(s):
-            s = s.strip()
-            if len(s) == 0:
-                return None
-            return s
-
         self.code = {}
         self.description = {}
         langs = Shell.get("mkvmerge", "--list-languages", do_print=False)
@@ -153,6 +150,8 @@ class Track(DefaultMunch):
         d['lang'] = self.lang
         d['lang_name'] = self.lang_name
         d['track_name'] = self.track_name
+        d['lines'] = self.lines
+        d['fonts'] = self.fonts
         return d
 
     def get_changes(self, mini=False) -> DefaultMunch:
@@ -173,3 +172,39 @@ class Track(DefaultMunch):
                 if chg.forced_track == int(self._original.get("forced_track", 0)):
                     del chg["forced_track"]
         return chg
+
+    @property
+    def lines(self) -> int:
+        if self._lines is None:
+            self._lines = self._get_lines()
+        return self._lines
+
+    def _get_lines(self):
+        if not (self.type == "subtitles" and self.source_file and isfile(self.source_file)):
+            return None
+        f = self.source_file
+        if self.text_subtitles:
+            sb = Sub(f)
+            lines = len(sb.load("srt"))
+            return lines
+        if f.endswith(".pgs"):
+            pgs = PGSReader(f)
+            dss = list(ds for ds in pgs.displaysets if ds.has_image)
+            return len(dss)
+        if f.endswith(".sub"):
+            idx = f.rsplit(".", 1)[0] + ".idx"
+            if isfile(idx):
+                lines = 0
+                with open(idx, "r") as fl:
+                    for l in fl.readlines():
+                        if l.strip().startswith("timestamp: "):
+                            lines = lines + 1
+                return lines
+
+    @property
+    def fonts(self) -> tuple:
+        if not (self.type == "subtitles" and self.text_subtitles and self.source_file and isfile(self.source_file)):
+            return None
+        if self._fonts is None:
+            self._fonts = Sub(self.source_file).fonts
+        return self._fonts
