@@ -585,13 +585,17 @@ class MkvMerge:
 
     def merge(self, output: str, *files: Track, tracks_selected: list = None) -> Mkv:
         src = []
-        for i, f in enumerate(files):
+        fl_chapters = None
+        for f in files:
+            if basename(f) == "chapters.xml":
+                fl_chapters = f
+                continue
             ext = f.rsplit(".", 1)[-1].lower()
             if ext in ("mkv", "mp4", "avi"):
-                mkv = Mkv(f, source=i, und=self.und, vo=self.vo, tracks_selected=tracks_selected)
+                mkv = Mkv(f, source=len(src), und=self.und, vo=self.vo, tracks_selected=tracks_selected)
                 src.append(mkv)
             else:
-                track = self.build_track(f, source=i)
+                track = self.build_track(f, source=len(src))
                 src.append(track)
 
         videos = self.get_tracks('video', src)
@@ -726,7 +730,7 @@ class MkvMerge:
                 elif len(mkv.attachments) < len(mkv.info.attachments):
                     sip = ",".join(map(str, sorted(a.id for a in mkv.attachments)))
                     arr.extend("-m {}", sip)
-                if mkv.num_chapters == 1:
+                if fl_chapters is not None or mkv.num_chapters == 1:
                     arr.extend("--no-chapters")
                 for t in sorted(mkv.tracks, key=lambda x: newordr.index("{source}:{id}".format(**dict(x)))):
                     chg = t.get_changes()
@@ -747,6 +751,8 @@ class MkvMerge:
                     arr.extend("--sub-charset {}:{}", s.id, get_encoding_type(s.source_file))
                 arr.append(s.source_file)
 
+        if fl_chapters is not None:
+            arr.extend(["--chapters", fl_chapters])
         arr.extend("--track-order " + ",".join(newordr))
         mkv = self.mkvmerge(output, *arr)
 
