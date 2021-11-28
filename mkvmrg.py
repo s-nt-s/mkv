@@ -4,7 +4,7 @@ import sys
 from os.path import isfile, basename, isdir
 from munch import DefaultMunch
 
-from core.mkv import MkvMerge
+from core.mkv import MkvMerge, Mkv
 from core.shell import Shell
 from core.sub import Sub
 from core.track import MKVLANG
@@ -37,6 +37,12 @@ if __name__ == "__main__":
             if ext in ("srt", "ssa", "ass"):
                 out = Sub(fln).save("srt")
                 print("OUT:", out)
+                colls = list(Sub(out).get_collisions())
+                if colls:
+                    print("COLISIONES:")
+                    for cls in colls:
+                        print("")
+                        print(cls)
                 sys.exit()
             if ext in ("sup", "pgs"):
                 print("OUT:", PGSReader(fln).fake_srt())
@@ -53,14 +59,19 @@ if __name__ == "__main__":
         print("[/code][/spoiler]")
         sys.exit()
 
+    if len(sys.argv) > 2 and sys.argv[1] == "edit":
+        for f in sys.argv[2:]:
+            f = Mkv(f)
+            f.fix_tracks(dry=True)
+        sys.exit()
+
     langs = sorted(k for k in MKVLANG.code.keys() if len(k) == 2)
     parser = argparse.ArgumentParser("Remezcla mkv")
     parser.add_argument('--und', help='Idioma para pistas und (mkvmerge --list-languages)', choices=langs)
     parser.add_argument('--vo', help='Idioma de la versión original (mkvmerge --list-languages)', choices=langs)
-    parser.add_argument('--do-srt', action='store_true', help='Genera subtitulos srt si no los hay')
-    parser.add_argument('--do-ac3', action='store_true', help='Genera audio ac3 si no lo hay')
     parser.add_argument('--tracks', nargs="*", help='tracks a preservar en formato source:id')
     parser.add_argument('--out', type=str, help='Fichero salida para mkvmerge', default='.')
+    parser.add_argument('--dry', action="store_true", help='Imprime el comando mkvmerge sin ejecutarlo')
     parser.add_argument('files', nargs="+", help='Ficheros a mezclar')
     pargs = parser.parse_args()
 
@@ -81,5 +92,5 @@ if __name__ == "__main__":
         pargs.vo = gargs.vo
 
     pargs.tracks = parse_track(pargs.tracks)
-    mrg = MkvMerge(vo=pargs.vo, und=pargs.und, do_srt=pargs.do_srt, do_ac3=pargs.do_ac3)
+    mrg = MkvMerge(vo=pargs.vo, und=pargs.und, dry=pargs.dry)
     mrg.merge(pargs.out, *pargs.files, tracks_selected=pargs.tracks)

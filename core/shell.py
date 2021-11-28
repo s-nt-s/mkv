@@ -59,9 +59,11 @@ class Shell:
         return " ".join(arr)
 
     @staticmethod
-    def run(*args: str, do_print: bool = True, **kwargs) -> int:
+    def run(*args: str, do_print: bool = True, dry: bool = False, **kwargs) -> int:
         if (do_print, kwargs.get("stdout") == subprocess.DEVNULL) == (True, False):
             print("$", Shell.to_str(*args))
+        if dry is True:
+            return
         out = subprocess.call(args, **kwargs)
         return out
 
@@ -74,9 +76,11 @@ class Shell:
         return None
 
     @staticmethod
-    def get(*args: str, do_print: bool = True, **kargv) -> str:
+    def get(*args: str, do_print: bool = True, dry: bool = False, **kargv) -> str:
         if do_print:
             print("$", Shell.to_str(*args))
+        if dry is True:
+            return
         output = subprocess.check_output(args, **kargv)
         output = output.decode(sys.stdout.encoding)
         return output
@@ -84,7 +88,7 @@ class Shell:
     @staticmethod
     def mkvinfo(file, **kwargs) -> Munch:
         arr = Args()
-        arr.extend("mkvmerge -F json --identify")
+        arr.extend("mkvmerge -J")
         arr.append(file)
         js = Shell.get(*arr, **kwargs)
         js = json.loads(js)

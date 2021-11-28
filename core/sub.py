@@ -4,7 +4,32 @@ import pysubs2
 
 from .util import backtwo, to_utf8
 
-re_nosub = re.compile(r"\bnewpct(\d+)?\.com|\baddic7ed\.com")
+re_nosub = re.compile(r"\bnewpct(\d+)?\.com|\baddic7ed\.com|^Subida x ")
+
+
+class SubLine:
+    def __init__(self, index, line):
+        self.index = index
+        self.line = line
+
+    def __str__(self):
+        fk_sub = pysubs2.SSAFile()
+        fk_sub.insert(0, self.line)
+        fk_str = fk_sub.to_string('srt')
+        fk_str = re.sub(r"^\d+\s*|\s*$", "", fk_str)
+        fk_str = re.sub(r"\s*\n\s*", " ", fk_str)
+        return str(self.index)+": "+fk_str
+
+
+class SubLines:
+    def __init__(self, *lines):
+        self.lines = list(lines)
+
+    def append(self, line):
+        self.lines.append(line)
+
+    def __str__(self):
+        return "\n".join(str(l) for l in self.lines)
 
 
 class Sub:
@@ -69,9 +94,36 @@ class Sub:
         if to_type == "srt":
             with open(out, "r") as f:
                 text = f.read()
-            n_text = re.sub(r"</(i|b)>([ \t]*)<\1>", r"\2", text)
-            n_text = re.sub(r"<(i|b)>([ \t]*)</\1>", r"\2", text)
+            n_text = str(text)
+            n_text = re.sub(r"</(i|b)>([ \t]*)<\1>", r"\2", n_text)
+            n_text = re.sub(r"<(i|b)>([ \t]*)</\1>", r"\2", n_text)
             if text != n_text:
                 with open(out, "w") as f:
                     f.write(n_text)
         return out
+
+    def get_collisions(self):
+        subs = self._load()
+        subs.sort()
+        times = {}
+        for indx, s in enumerate(subs):
+            for i in range(s.start, s.end):
+                if i not in times:
+                    times[i] = []
+                times[i].append(indx)
+
+        colls = set()
+        for k in sorted(times.keys()):
+            v = times[k]
+            if len(v)<2:
+                continue
+            colls.add(tuple(v))
+
+        if len(colls) == 0:
+            return
+
+        for v in sorted(colls):
+            rtn = SubLines()
+            for indx in v:
+                rtn.append(SubLine(indx+1, subs[indx]))
+            yield rtn

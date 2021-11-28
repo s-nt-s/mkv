@@ -1,5 +1,6 @@
 .idea
 core/guess.py
+uf.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,10 +1,10 @@
 import re
 
 from munch import DefaultMunch
-from os.path import isfile
+from os.path import isfile, getsize, basename
 
 from .shell import Shell
-from .util import LANG_ES, trim
+from .util import LANG_ES, trim, read_file, get_printable, to_utf8
 from .sub import Sub
 from .pgsreader import PGSReader
 
@@ -34,6 +34,62 @@ class Track(DefaultMunch):
         super().__init__(*args, **kwargs)
         if "track_name" not in self:
             self.track_name = None
+        if "source_file" not in self:
+            self.source_file = None
+        if self.source_file:
+            if self.track_name is None:
+                self.track_name = basename(self.source_file)
+                self.fake_name = True
+            if self.isUnd:
+                lw_name = basename(self.source_file).lower()
+                st_name = set(re.split(r"[\.]+", lw_name))
+                if re.search(r"\b(español|castellano|spanish|)\b|\[esp\]", lw_name) or st_name.intersection({"es", }):
+                    self.set_lang("spa")
+                if re.search(r"\b(ingles|english)\b", lw_name) or st_name.intersection({"en", }):
+                    self.set_lang("eng")
+                if re.search(r"\b(japon[ée]s|japanese)\b", lw_name) or st_name.intersection({"ja", }):
+                    self.set_lang("jpn")
+                if self.isUnd:
+                    self.set_lang(self.und or "und")
+                if re.search(r"\b(forzados?)\b", lw_name) or st_name.intersection({"forzados", "forzado"}):
+                    self.forced_track = 1
+
+    @staticmethod
+    def build(source, arg):
+        file = None
+        track = None
+        rm_chapters = None
+        if isinstance(arg, str) and isfile(arg):
+            file = str(arg)
+        elif isinstance(arg, dict):
+            track = arg.copy()
+        else:
+            raise Exception("Tipo invalido en el argumento: %s" % arg)
+
+        if file:
+            tinfo = Shell.mkvinfo(file)
+            track = tinfo.tracks[0]
+            if track.get('type') == "subtitles":
+                f = to_utf8(file)
+                if f not in (None, file):
+                    return Track.build_track(source, f)
+            if len(tinfo.get("chapters", [])) == 1 and tinfo.chapters[0].num_entries == 1:
+                rm_chapters = True
+
+        data = track.properties.copy()
+        data.id = track.id
+        data.codec = track.codec
+        data.type = track.type
+        data.source = source
+        data.source_file = file
+
+        if track.type == 'subtitles':
+            return SubTrack(**dict(data), rm_chapters=rm_chapters, _original=track.properties.copy())
+        if track.type == 'audio':
+            return AudioTrack(**dict(data), rm_chapters=rm_chapters, _original=track.properties.copy())
+        if track.type == 'video':
+            return VideoTrack(**dict(data), rm_chapters=rm_chapters, _original=track.properties.copy())
+        raise Exception("Tipo de Track no reconocido %s" % track.type)
 
     @property
     def lang(self) -> str:
@@ -103,55 +159,23 @@ class Track(DefaultMunch):
             return "sub"
         raise Exception("Extensión no encontrada para: {codec}".format(**dict(self)))
 
-    @property
-    def new_name(self) -> str:
-        if self.type == "video":
-            lb = None
-            if "H.264" in self.codec:
-                lb = "H.264"
-            if "H.265" in self.codec:
-                lb = "H.265"
-            if "HDMV" in self.codec:
-                lb = "HDMV"
-            if lb is None:
-                return None
-            if self.pixel_dimensions:
-                lb = "{} ({})".format(lb, self.pixel_dimensions)
-            if self.duration is not None and self.duration.minutes > 59:
-                lb = lb + " ({}m)".format(self.duration.minutes)
-            return lb
-        arr = [self.lang_name]
-        if self.type == "subtitles" and self.forced_track:
-            arr.append("forzados")
-        if self.type == "audio" and self.track_name:
-            m = set(i for i in re_doblage.findall(self.track_name) if len(i) == 4)
-            if len(m) == 1:
-                arr.append(m.pop())
-        arr.append("(" + self.file_extension + ")")
-        if self.type == "subtitles" and self.lines:
-            arr.append("({} línea{})".format(self.lines, "s" if self.lines > 1 else ""))
-        return " ".join(arr)
-
     def set_lang(self, lang):
         if len(lang) == 3 and lang != self.language_ietf:
             self.language_ietf = lang
             self.language = MKVLANG.code.get(lang)
             self.isNewLang = True
         if len(lang) == 2 and lang != self.language:
-            self.language = lang
             self.language_ietf = MKVLANG.code.get(lang)
+            self.language = lang
             self.isNewLang = True
 
     def to_dict(self) -> dict:
-        d = dict(self)
-        d['new_name'] = self.new_name
-        d['file_extension'] = self.file_extension
-        d['isLatino'] = self.isLatino
-        d['lang'] = self.lang
-        d['lang_name'] = self.lang_name
-        d['track_name'] = self.track_name
-        d['lines'] = self.lines
-        d['fonts'] = self.fonts
+        d = {k: v for k, v in dict(self).items() if not k.startswith("_")}
+        for name in dir(self.__class__):
+            obj = getattr(self.__class__, name)
+            if isinstance(obj, property):
+                val = obj.__get__(self, self.__class__)
+                d[name] = val
         return d
 
     def get_changes(self, mini=False) -> DefaultMunch:
@@ -174,37 +198,131 @@ class Track(DefaultMunch):
         return chg
 
     @property
-    def lines(self) -> int:
-        if self._lines is None:
-            self._lines = self._get_lines()
-        return self._lines
+    def new_name(self) -> str:
+        return self.track_name
 
-    def _get_lines(self):
-        if not (self.type == "subtitles" and self.source_file and isfile(self.source_file)):
+    def has_file(self) -> bool:
+        return self.source_file and isfile(self.source_file)
+
+    def is_empty_source(self) -> bool:
+        if not self.has_file():
             return None
-        f = self.source_file
+        if getsize(self.source_file) == 0:
+            return True
+        return False
+
+
+class VideoTrack(Track):
+    @property
+    def new_name(self) -> str:
+        lb = None
+        if "H.264" in self.codec:
+            lb = "H.264"
+        if "H.265" in self.codec:
+            lb = "H.265"
+        if "HDMV" in self.codec:
+            lb = "HDMV"
+        if lb is None:
+            raise Exception("codec no reconocido %s" % self.dodec)
+        if self.pixel_dimensions:
+            lb = "{} ({})".format(lb, self.pixel_dimensions)
+        if self.duration is not None and self.duration.minutes > 59:
+            lb = lb + " ({}m)".format(self.duration.minutes)
+        return lb
+
+
+class AudioTrack(Track):
+    @property
+    def new_name(self) -> str:
+        arr = [self.lang_name]
+        if self.track_name:
+            m = set(i for i in re_doblage.findall(self.track_name) if len(i) == 4)
+            if len(m) == 1:
+                arr.append(m.pop())
+        arr.append("(" + self.file_extension + ")")
+        return " ".join(arr)
+
+
+class SubTrack(Track):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fix_text_subtitles()
+
+    def fix_text_subtitles(self):
+        if self.has_file():
+            self.text_subtitles = True
+            return
+        if "text_subtitles" in self and self.text_subtitles is not None:
+            return
+        if self.codec_id in ("S_VOBSUB", "S_HDMV/PGS"):
+            self.text_subtitles = False
+            return
+        raise Exception(
+            "No se ha podido determinar si es un subtitulo de texto {id}:{codec_id}".format(self.__dict__))
+
+    @property
+    def new_name(self) -> str:
+        arr = [self.lang_name]
+        if self.forced_track:
+            arr.append("forzados")
+        arr.append("(" + self.file_extension + ")")
+        if self.lines:
+            arr.append("({} línea{})".format(self.lines, "s" if self.lines > 1 else ""))
+        return " ".join(arr)
+
+    def is_empty_source(self) -> bool:
+        if super().is_empty_source():
+            return True
+        if self.text_subtitles and self.has_file():
+            cnt = read_file(self.source_file)
+            cnt = get_printable(cnt)
+            if len(cnt) == 0:
+                return True
+        return False
+
+    @property
+    def lines(self) -> int:
+        if not self.has_file():
+            return None
+        if self.is_empty_source():
+            return 0
         if self.text_subtitles:
-            sb = Sub(f)
+            sb = Sub(self.source_file)
             lines = len(sb.load("srt"))
             return lines
-        if f.endswith(".pgs"):
-            pgs = PGSReader(f)
+        if self.source_file.endswith(".pgs"):
+            pgs = PGSReader(self.source_file)
             dss = list(ds for ds in pgs.displaysets if ds.has_image)
             return len(dss)
-        if f.endswith(".sub"):
-            idx = f.rsplit(".", 1)[0] + ".idx"
-            if isfile(idx):
+        if self.source_file.endswith(".sub"):
+            idx = self.source_file.rsplit(".", 1)[0] + ".idx"
+            txt = read_file(idx)
+            if txt is not None:
                 lines = 0
-                with open(idx, "r") as fl:
-                    for l in fl.readlines():
-                        if l.strip().startswith("timestamp: "):
-                            lines = lines + 1
+                for l in txt.split("\n"):
+                    if l.strip().startswith("timestamp: "):
+                        lines = lines + 1
                 return lines
 
     @property
     def fonts(self) -> tuple:
-        if not (self.type == "subtitles" and self.text_subtitles and self.source_file and isfile(self.source_file)):
+        if not self.has_file():
             return None
-        if self._fonts is None:
-            self._fonts = Sub(self.source_file).fonts
-        return self._fonts
+        if not self.text_subtitles or self.is_empty_source():
+            return tuple()
+        return Sub(self.source_file).fonts
+
+    @property
+    def collisions(self) -> int:
+        if not (self.text_subtitles and self.has_file()):
+            return None
+        if self.is_empty_source() or self.lines < 2:
+            return 0
+        return len(list(Sub(self.source_file).get_collisions()))
+
+    def is_srt_candidate(self):
+        if self.file_extension == "srt":
+            return False
+        if self.text_subtitles:
+            return True
+        return False

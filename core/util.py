@@ -1,6 +1,8 @@
 import re
 import tempfile
-from os.path import basename, dirname, realpath
+from os.path import basename, dirname, realpath, isfile
+import unicodedata
+import json
 
 from chardet import detect
 
@@ -9,13 +11,14 @@ LANG_ES = ("es", "spa", "es-ES")
 
 
 class MyTMP:
-    def __init__(self):
+    def __init__(self, prefix=None):
         self._tmp = None
+        self.prefix = prefix
 
     @property
     def tmp(self):
         if self._tmp is None:
-            self._tmp = tempfile.mkdtemp()
+            self._tmp = tempfile.mkdtemp(prefix=self.prefix)
             print("$ mkdir -p", self._tmp)
         return self._tmp
 
@@ -26,7 +29,7 @@ class MyTMP:
         return self.tmp + o
 
 
-TMP = MyTMP()
+TMP = MyTMP(prefix="mkvmrg.")
 
 
 def backtwo(arr) -> reversed:
@@ -83,3 +86,38 @@ def trim(s):
     if len(s) == 0:
         return None
     return s
+
+
+def read_file(file):
+    if file is not None and isfile(file):
+        with open(file, "r") as f:
+            return f.read()
+
+
+def get_printable(s):
+    s = ''.join(c for c in s if unicodedata.category(c) in {'Lu', 'Ll'})
+    s = s.strip()
+    return s
+
+
+def my_filter(arr, *funcs):
+    rt = [[] for _ in range(len(funcs)+1)]
+    for item in arr:
+        all_ko = True
+        for i, func in enumerate(funcs):
+            if func(item) is True:
+                rt[i].append(item)
+                all_ko = False
+        if all_ko:
+            rt[-1].append(item)
+    return rt
+
+def read(file):
+    if file is None or not isfile(file):
+        return None
+    ext = file.rsplit(".", 1)[-1].lower()
+    if ext in ("json",):
+        with open(file, "r") as f:
+            return json.load(f)
+    with open(file, "r") as f:
+        return f.read()
