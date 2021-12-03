@@ -89,9 +89,15 @@ def trim(s):
 
 
 def read_file(file):
-    if file is not None and isfile(file):
+    if file is None or not isfile(file):
+        return None
+    ext = file.rsplit(".", 1)
+    ext = ext[-1].lower()
+    if ext in ("json",):
         with open(file, "r") as f:
-            return f.read()
+            return json.load(f)
+    with open(file, "r") as f:
+        return f.read()
 
 
 def get_printable(s):
@@ -111,13 +117,3 @@ def my_filter(arr, *funcs):
         if all_ko:
             rt[-1].append(item)
     return rt
-
-def read(file):
-    if file is None or not isfile(file):
-        return None
-    ext = file.rsplit(".", 1)[-1].lower()
-    if ext in ("json",):
-        with open(file, "r") as f:
-            return json.load(f)
-    with open(file, "r") as f:
-        return f.read()

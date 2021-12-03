@@ -157,6 +157,8 @@ class Track(DefaultMunch):
             return "aac"
         if self.codec == "VobSub":
             return "sub"
+        if self.codec == "Opus":
+            return "opus"
         raise Exception("Extensión no encontrada para: {codec}".format(**dict(self)))
 
     def set_lang(self, lang):
@@ -318,7 +320,8 @@ class SubTrack(Track):
             return None
         if self.is_empty_source() or self.lines < 2:
             return 0
-        return len(list(Sub(self.source_file).get_collisions()))
+        colls = list(Sub(self.source_file).get_collisions())
+        return len(colls)
 
     def is_srt_candidate(self):
         if self.file_extension == "srt":
@@ -326,3 +329,12 @@ class SubTrack(Track):
         if self.text_subtitles:
             return True
         return False
+
+    def to_srt(self, **kwargs):
+        for k, v in dict(self).items():
+            if k not in kwargs:
+                kwargs[k]=v
+        s = SubTrack(**kwargs)
+        s.id = 0
+        s.source_file = Sub(self.source_file).save("srt")
+        return s

@@ -60,11 +60,16 @@ class Shell:
 
     @staticmethod
     def run(*args: str, do_print: bool = True, dry: bool = False, **kwargs) -> int:
-        if (do_print, kwargs.get("stdout") == subprocess.DEVNULL) == (True, False):
+        do_print = (do_print, kwargs.get("stdout") == subprocess.DEVNULL) == (True, False)
+        if do_print:
             print("$", Shell.to_str(*args))
         if dry is True:
             return
         out = subprocess.call(args, **kwargs)
+        if out != 0:
+            if not do_print:
+                print("$", Shell.to_str(*args))
+            print("# exit code", out)
         return out
 
     @staticmethod

@@ -2,14 +2,45 @@ import re
 import subprocess
 import sys
 from itertools import zip_longest
-from os.path import basename
+from os.path import basename, isfile
 
 import xmltodict
 from munch import DefaultMunch, Munch
+from textwrap import dedent
 
 from .shell import Shell, Args
 from .track import Track
 from .util import LANG_ES, TMP, get_title, get_encoding_type, my_filter
+
+def write_tags(file, **kwargs):
+    with open(file, "w") as f:
+        f.write(dedent('''
+            <?xml version="1.0"?>
+            <!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->
+            <Tags>
+        ''').strip()+"\n")
+        for k, v in kwargs.items():
+            if isinstance(v, list):
+                v = "\n".join(v)
+            f.write(dedent('''
+              <Tag>
+                <Simple>
+                  <Name>{}</Name>
+                  <String>{}</String>
+                </Simple>
+              </Tag>
+            ''').strip().format(k, v)+"\n")
+        f.write("</Tags>")
+
+
+class SetList(list):
+    def append(self, obj) -> None:
+        if obj not in self:
+            super().append(obj)
+
+    def extend(self, objs) -> None:
+        for obj in objs:
+            self.append(obj)
 
 
 class Duration:
@@ -93,8 +124,49 @@ class Mkv:
             if len(out) == 0:
                 self._core.chapters = dict()
             else:
-                self._core.chapters = xmltodict.parse(out.strip())
+                self._core.chapters = xmltodict.parse(out)
         return self._core.chapters
+
+    @property
+    def tags(self):
+        if self._core.tags is None:
+            out = Shell.get("mkvextract", "tags", self.file)
+            out = out.strip()
+            if len(out) == 0:
+                self._core.tags = dict()
+            else:
+                self._core.tags = xmltodict.parse(out)
+        return self._core.tags
+
+    def get_tag(self, name, split_lines=False):
+        def get_arr(dct, field):
+            if dct is None:
+                return []
+            value = dct.get(field)
+            if value is None:
+                return []
+            if not isinstance(value, list):
+                return [value]
+            return value
+
+        r_vals = []
+        for tag in get_arr(self.tags.get("Tags"), 'Tag'):
+            for s in get_arr(tag, 'Simple'):
+                if s.get('Name') != name:
+                    continue
+                vals = s.get('String')
+                if vals is None:
+                    continue
+                vals = vals.strip()
+                if split_lines:
+                    vals = vals.split("\n")
+                else:
+                    vals = [vals]
+                for val in vals:
+                    val = val.strip()
+                    if len(val) > 0 and val not in r_vals:
+                        r_vals.append(val)
+        return r_vals
 
     @property
     def main_lang(self) -> tuple:
@@ -128,7 +200,9 @@ class Mkv:
             outs.append(out)
             arrg.append(str(track.id) + ":" + out)
 
-        Shell.run("mkvextract", self.file, *arrg, **kwargs)
+        cod = Shell.run("mkvextract", self.file, *arrg, **kwargs)
+        if cod != 0:
+            raise Exception("Error al usar mkvextract")
         return tuple(outs)
 
     @property
@@ -548,17 +622,24 @@ class MkvMerge:
 
         return newordr
 
-    def merge(self, output: str, *files: Track, tracks_selected: list = None) -> Mkv:
+    def merge(self, output: str, *files: Track, tracks_selected: list = None, do_srt: bool = False) -> Mkv:
         src = []
         fl_chapters = None
+        fl_tags = None
+        cm_tag = SetList()
+
         for f in files:
             if basename(f) == "chapters.xml":
                 fl_chapters = f
+                continue
+            if basename(f) == "tags.xml":
+                fl_tags = f
                 continue
             ext = f.rsplit(".", 1)[-1].lower()
             if ext in ("mkv", "mp4", "avi"):
                 mkv = Mkv(f, source=len(src), und=self.und, vo=self.vo, tracks_selected=tracks_selected)
                 src.append(mkv)
+                cm_tag.extend(mkv.get_tag('COMMENT', split_lines=True))
             else:
                 track = Track.build(len(src), f)
                 src.append(track)
@@ -614,6 +695,11 @@ class MkvMerge:
                 s.mkv.ban[s.type].add(s.id)
 
         for s in self.get_tracks('subtitles', src):
+            if do_srt and s.text_subtitles and s.source_file:
+                if s.mkv:
+                    s.mkv.ban.subtitles.add(s.id)
+                    src.append(s.to_srt(source=len(src)))
+                continue
             if s.is_srt_candidate():
                 print(
                     "# ¡! {source}:{id}:{file_extension} {new_name} podría ser convertido a SRT ({collisions} colisiones)".format(
@@ -642,7 +728,7 @@ class MkvMerge:
                 elif len(mkv.attachments) < len(mkv.info.attachments):
                     sip = ",".join(map(str, sorted(a.id for a in mkv.attachments)))
                     arr.extend("-m {}", sip)
-                if fl_chapters is not None or mkv.num_chapters == 1 or len(mkv.get_tracks('video'))==0:
+                if fl_chapters is not None or mkv.num_chapters == 1 or len(mkv.get_tracks('video')) == 0:
                     arr.extend("--no-chapters")
                 for t in sorted(mkv.tracks, key=lambda x: newordr.index("{source}:{id}".format(**dict(x)))):
                     chg = t.get_changes()
@@ -665,6 +751,13 @@ class MkvMerge:
 
         if fl_chapters is not None:
             arr.extend(["--chapters", fl_chapters])
+
+        if fl_tags is None:
+            fl_tags = TMP + "/tags.xml"
+            cm_tag.extend((basename(a) for a in arr if isfile(a)))
+            write_tags(fl_tags, COMMENT=cm_tag)
+        arr.extend(["--global-tags", fl_tags])
+
         arr.extend("--track-order " + ",".join(newordr))
         mkv = self.mkvmerge(output, *arr)
         if self.dry:
