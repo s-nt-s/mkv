@@ -91,6 +91,23 @@ class Track(DefaultMunch):
             return VideoTrack(**dict(data), rm_chapters=rm_chapters, _original=track.properties.copy())
         raise Exception("Tipo de Track no reconocido %s" % track.type)
 
+    def __str__(self):
+        kys = [str(self.source), str(self.id)]
+        if self.type != 'video':
+            kys.append(self.lang)
+        try:
+            kys.append(self.file_extension)
+        except:
+            kys.append(self.codec)
+
+        line = ":".join(kys)
+
+        if self.type != 'video' and self.pixel_dimensions:
+            line = line + self.pixel_dimensions
+        elif self.track_name:
+            line = line + " " + self.track_name
+        return line
+
     @property
     def lang(self) -> str:
         lg = [self.language_ietf, self.language]
@@ -145,7 +162,7 @@ class Track(DefaultMunch):
             return "pgs"
         if self.codec in ("AC-3", "AC-3 Dolby Surround EX", "E-AC-3"):
             return "ac3"
-        if self.codec in ("DTS", "DTS-ES"):
+        if self.codec in ("DTS", "DTS-ES", "DTS-HD Master Audio"):
             return "dts"
         if self.codec_id == "A_VORBIS":
             return "ogg"
@@ -224,8 +241,10 @@ class VideoTrack(Track):
             lb = "H.265"
         if "HDMV" in self.codec:
             lb = "HDMV"
+        if "MPEG-4p2" in self.codec:
+            lb = "MPEG-4p2"
         if lb is None:
-            raise Exception("codec no reconocido %s" % self.dodec)
+            raise Exception("codec no reconocido %s" % self.codec)
         if self.pixel_dimensions:
             lb = "{} ({})".format(lb, self.pixel_dimensions)
         if self.duration is not None and self.duration.minutes > 59:
@@ -241,7 +260,16 @@ class AudioTrack(Track):
             m = set(i for i in re_doblage.findall(self.track_name) if len(i) == 4)
             if len(m) == 1:
                 arr.append(m.pop())
-        arr.append("(" + self.file_extension + ")")
+        chn = ""
+        if self.audio_channels == 1:
+            chn = " 1.0"
+        elif self.audio_channels == 2:
+            chn = " 2.0"
+        elif self.audio_channels == 6:
+            chn = " 5.1"
+        elif self.audio_channels == 8:
+            chn = " 7.1"
+        arr.append("(" + self.file_extension + chn + ")")
         return " ".join(arr)
 
 
@@ -333,8 +361,10 @@ class SubTrack(Track):
     def to_srt(self, **kwargs):
         for k, v in dict(self).items():
             if k not in kwargs:
-                kwargs[k]=v
+                kwargs[k] = v
         s = SubTrack(**kwargs)
         s.id = 0
+        s.codec = "SubRip/SRT"
+        s.text_subtitles = True
         s.source_file = Sub(self.source_file).save("srt")
         return s

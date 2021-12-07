@@ -1,6 +1,7 @@
 import re
 
 import pysubs2
+from functools import lru_cache
 
 from .util import backtwo, to_utf8
 
@@ -18,7 +19,7 @@ class SubLine:
         fk_str = fk_sub.to_string('srt')
         fk_str = re.sub(r"^\d+\s*|\s*$", "", fk_str)
         fk_str = re.sub(r"\s*\n\s*", " ", fk_str)
-        return str(self.index)+": "+fk_str
+        return str(self.index) + ": " + fk_str
 
 
 class SubLines:
@@ -36,20 +37,24 @@ class Sub:
     def __init__(self, file: str):
         self.file = to_utf8(file)
 
-    def _load(self):
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def read(file) -> pysubs2.SSAFile:
         try:
-            return pysubs2.load(self.file)
+            return pysubs2.load(file)
         except ValueError:
-            typ = self.file.rsplit(".", 1)[-1].lower()
-            with open(self.file, "r") as f:
+            typ = file.rsplit(".", 1)[-1].lower()
+            with open(file, "r") as f:
                 text = f.read()
             text = text.replace("Dialogue: Marked=0,", "Dialogue: 0,")
             return pysubs2.SSAFile.from_string(text, format=typ)
 
-    def load(self, to_type: str = None) -> pysubs2.SSAFile:
-        subs = self._load()
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def st_load(file, to_type: str = None) -> pysubs2.SSAFile:
+        subs = Sub.read(file)
         subs.sort()
-        if to_type and not self.file.endswith("." + to_type):
+        if to_type and not file.endswith("." + to_type):
             strng = subs.to_string(to_type)
             if strng.strip():
                 subs = pysubs2.SSAFile.from_string(strng, format=to_type)
@@ -62,7 +67,9 @@ class Sub:
             flag = len(subs)
             for i, s in reversed(list(enumerate(subs))):
                 for o in subs[:i]:
-                    if o.text == s.text and o.start <= s.start and o.end >= s.start:
+                    if o.text == s.text and o.start <= s.start <= o.end:
+                        if s.end > o.end:
+                            o.end = s.end
                         del subs[i]
                         break
             for i, s, prev in backtwo(subs):
@@ -72,9 +79,12 @@ class Sub:
             subs.sort()
         return subs
 
+    def load(self, to_type: str = None) -> pysubs2.SSAFile:
+        return Sub.st_load(self.file, to_type)
+
     @property
     def fonts(self) -> tuple:
-        subs = self._load()
+        subs = Sub.read(self.file)
         fonts = set()
         for f in subs.styles.values():
             fonts.add(f.fontname)
@@ -84,7 +94,7 @@ class Sub:
 
     def save(self, out: str) -> str:
         if "." not in out:
-            out = self.file.rsplit(".", 1)[0] + "." + out
+            out = self.file + "." + out
         to_type = out.rsplit(".", 1)[-1]
         if out == self.file:
             out = out + "." + to_type
@@ -103,7 +113,7 @@ class Sub:
         return out
 
     def get_collisions(self):
-        subs = self._load()
+        subs = self.load("srt")
         subs.sort()
         times = {}
         for indx, s in enumerate(subs):
@@ -115,7 +125,7 @@ class Sub:
         colls = set()
         for k in sorted(times.keys()):
             v = times[k]
-            if len(v)<2:
+            if len(v) < 2:
                 continue
             colls.add(tuple(v))
 
@@ -125,5 +135,5 @@ class Sub:
         for v in sorted(colls):
             rtn = SubLines()
             for indx in v:
-                rtn.append(SubLine(indx+1, subs[indx]))
+                rtn.append(SubLine(indx + 1, subs[indx]))
             yield rtn

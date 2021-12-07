@@ -71,7 +71,7 @@ if __name__ == "__main__":
     parser.add_argument('--vo', help='Idioma de la versión original (mkvmerge --list-languages)', choices=langs)
     parser.add_argument('--tracks', nargs="*", help='tracks a preservar en formato source:id')
     parser.add_argument('--out', type=str, help='Fichero salida para mkvmerge', default='.')
-    parser.add_argument('--srt', action="store_true", help='Convertir subtítulos a srt')
+    parser.add_argument('--srt', type=int, help='Convertir a srt los subtítulos con X colisiones o menos', default=0)
     parser.add_argument('--dry', action="store_true", help='Imprime el comando mkvmerge sin ejecutarlo')
     parser.add_argument('files', nargs="+", help='Ficheros a mezclar')
     pargs = parser.parse_args()
@@ -91,7 +91,13 @@ if __name__ == "__main__":
         sys.exit("Ya existe: " + pargs.out)
     if pargs.vo is None:
         pargs.vo = gargs.vo
+    if pargs.srt == 0 and gargs.srt is not None:
+        pargs.srt = gargs.srt
+    if (pargs.tracks is None or len(pargs.tracks) == 0) and gargs.tracks is not None:
+        pargs.tracks = gargs.tracks
 
     pargs.tracks = parse_track(pargs.tracks)
+
     mrg = MkvMerge(vo=pargs.vo, und=pargs.und, dry=pargs.dry)
     mrg.merge(pargs.out, *pargs.files, tracks_selected=pargs.tracks, do_srt=pargs.srt)
+    print("")
