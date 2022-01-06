@@ -1,7 +1,8 @@
 #!/usr/bin/python3
 import argparse
 import sys
-from os.path import isfile, basename, isdir
+from os import makedirs
+from os.path import isfile, basename, isdir, realpath, dirname
 from munch import DefaultMunch
 
 from core.mkv import MkvMerge, Mkv
@@ -17,6 +18,8 @@ except ImportError:
 
 
 def parse_track(tracks):
+    if isinstance(tracks, str):
+        tracks = [tracks]
     if tracks is None or len(tracks) == 0:
         return tracks
     trck = []
@@ -80,7 +83,7 @@ if __name__ == "__main__":
         if not isfile(file):
             sys.exit("No existe: " + file)
 
-    gargs = guess_args(*pargs.files)
+    gargs = guess_args(pargs)
     if isdir(pargs.out):
         if gargs.out is None:
             sys.exit("No se puede adivinar el nombre de fichero destino, proporcionelo usando --out")
@@ -91,10 +94,17 @@ if __name__ == "__main__":
         sys.exit("Ya existe: " + pargs.out)
     if pargs.vo is None:
         pargs.vo = gargs.vo
+    if pargs.und is None and gargs.und is not None:
+        pargs.und = gargs.und
     if pargs.srt == 0 and gargs.srt is not None:
         pargs.srt = gargs.srt
     if (pargs.tracks is None or len(pargs.tracks) == 0) and gargs.tracks is not None:
         pargs.tracks = gargs.tracks
+        
+    drout = dirname(realpath(pargs.out))
+    if drout and not isdir(drout):
+        print("$ mkdir -p '{}'".format(dirname(pargs.out)))
+        makedirs(drout, exist_ok=True)
 
     pargs.tracks = parse_track(pargs.tracks)
 

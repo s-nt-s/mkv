@@ -8,6 +8,7 @@ from chardet import detect
 
 re_sp = re.compile(r"\s+")
 LANG_ES = ("es", "spa", "es-ES")
+LANG_SB = LANG_ES + ("en", "eng", "en-EN")
 
 
 class MyTMP:
@@ -40,7 +41,16 @@ def backtwo(arr) -> reversed:
 def get_encoding_type(file):
     with open(file, 'rb') as f:
         rawdata = f.read()
-    return detect(rawdata)['encoding']
+    dtc = detect(rawdata)
+    enc = dtc['encoding']
+    for e in (enc, "iso-8859-1"):
+        try:
+            with open(file, 'r', encoding=e) as s:
+                s.read()
+            return e
+        except UnicodeDecodeError:
+            pass
+    raise Exception("No se ha detectado la codificación de " + file)
 
 
 def to_utf8(file: str) -> str:
@@ -52,7 +62,7 @@ def to_utf8(file: str) -> str:
     while n_file == file:
         n_file = n_file + "." + n_file.split(".")[-1]
     with open(file, 'r', encoding=enc) as s:
-        with open(n_file, 'w', encoding='utf-8') as t:
+        with open(n_file, 'w', encoding='utf-8-sig') as t:
             text = s.read()
             t.write(text)
     print("# MV", file, "({}) -> ({})".format(enc, get_encoding_type(n_file)), n_file)
@@ -96,18 +106,18 @@ def read_file(file):
     if ext in ("json",):
         with open(file, "r") as f:
             return json.load(f)
-    with open(file, "r") as f:
+    with open(file, "r", encoding=get_encoding_type(file)) as f:
         return f.read()
 
 
 def get_printable(s):
-    s = ''.join(c for c in s if unicodedata.category(c) in {'Lu', 'Ll'})
+    s = ''.join(c for c in s if unicodedata.category(c)[0] in 'LNPS')
     s = s.strip()
     return s
 
 
 def my_filter(arr, *funcs):
-    rt = [[] for _ in range(len(funcs)+1)]
+    rt = [[] for _ in range(len(funcs) + 1)]
     for item in arr:
         all_ko = True
         for i, func in enumerate(funcs):

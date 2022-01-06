@@ -10,7 +10,7 @@ from textwrap import dedent
 
 from .shell import Shell, Args
 from .track import Track
-from .util import LANG_ES, TMP, get_title, get_encoding_type, my_filter
+from .util import LANG_ES, LANG_SB, TMP, get_title, get_encoding_type, my_filter
 
 def write_tags(file, **kwargs):
     with open(file, "w") as f:
@@ -261,6 +261,13 @@ class Mkv:
                 print("# und -> es {}".format(track))
                 track.set_lang("spa")
 
+            audio = [t for t in arr if t.type == 'audio']
+            if len(audio) == 1 and audio[0].isUnd and self.vo is not None:
+                track = audio[0]
+                print("# und -> {} {}".format(self.vo, track))
+                track.set_lang(self.vo)
+            
+
             isUnd = [t for t in arr if t.isUnd]
             if len(isUnd):
                 print("Es necesario pasar el parámetro --und")
@@ -361,13 +368,35 @@ class Mkv:
                     continue
                 if s.type not in ('audio', 'subtitles'):
                     continue
+                if s.type == 'audio' and s.track_name and s.track_name.endswith(' (Audio Description)'):
+                    print("# RM {} por audio-description".format(s))
+                    self._core.ban[s.type].add(s.id)
+                    continue
                 if s.type == 'subtitles' and s.lines == 0:
                     print("# RM {} por estar vacio".format(s))
-                    self._core.ban.subtitles.add(s.id)
-                    continue
-                if s.lang and s.lang not in self.main_lang and s.type in ('subtitles', 'audio'):
                     self._core.ban[s.type].add(s.id)
-                    print("# RM {} por idioma".format(s))
+                    continue
+                if s.lang and s.type in ('subtitles', 'audio'):
+                    if s.lang not in self.main_lang or (s.type == 'subtitles' and s.lang not in set(LANG_SB).intersection(self.main_lang)):
+                        self._core.ban[s.type].add(s.id)
+                        print("# RM {} por idioma".format(s))
+
+
+            for tp, lCastSpan in (
+                    ('audio', ("Castilian", "Spanish")),
+                    ('audio', ("European Spanish", "Spanish")),
+                    ('subtitles', ("Castilian", "Spanish")),
+                    ('subtitles', ("Castilian [Forced]", "Spanish [Forced]")),
+                    ('subtitles', ("European Spanish", "Spanish")),
+                    ('subtitles', ("Castilian [Full]", "Spanish [Full]")),
+                    ('subtitles', ("European Spanish (Forced)", "Spanish (Forced)")),
+            ):
+                esTrc = sorted([s for s in self._core.tracks if s.type == tp and s.lang in LANG_ES and s.track_name in lCastSpan], key=lambda x: lCastSpan.index(x.track_name))
+                if tuple(x.track_name for x in esTrc) == lCastSpan:
+                    s = esTrc[1]
+                    self._core.ban[s.type].add(s.id)
+                    print("# RM {} por idioma (latino)".format(s))
+
 
             isSpa = Munch()
             for s in self._core.tracks:
@@ -656,7 +685,7 @@ class MkvMerge:
         cm_tag = SetList()
 
         for f in files:
-            if basename(f) == "chapters.xml":
+            if basename(f) in ("chapters.xml", "chapters.txt"):
                 fl_chapters = f
                 continue
             if basename(f) == "tags.xml":

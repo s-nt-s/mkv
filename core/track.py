@@ -176,6 +176,8 @@ class Track(DefaultMunch):
             return "sub"
         if self.codec == "Opus":
             return "opus"
+        if self.codec == "TrueHD Atmos":
+            return "TrueHD"
         raise Exception("Extensión no encontrada para: {codec}".format(**dict(self)))
 
     def set_lang(self, lang):
