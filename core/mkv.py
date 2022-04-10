@@ -418,7 +418,9 @@ class Mkv:
                     fonts = fonts.union(s.fonts)
 
             for a in self.info.attachments:
-                if len(txt_sub) == 0 or a.get('content_type') not in ("application/x-truetype-font", "application/vnd.ms-opentype"):
+                ext = a.get('file_name', '').rsplit(".", 1)[-1].lower()
+                typ = a.get('content_type', '').lower()
+                if len(txt_sub) == 0 or not(typ in ("application/x-truetype-font", "application/vnd.ms-opentype") or ext in ("ttc", )):
                     self.ban.attachments.add(a.id)
                     print("# RM {}:{id}:{content_type} {file_name} por tipo o falta de subtitulos != srt".format(self.source, **a))
                 #elif a.font is not None:

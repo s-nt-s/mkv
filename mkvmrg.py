@@ -3,7 +3,6 @@ import argparse
 import sys
 from os import makedirs
 from os.path import isfile, basename, isdir, realpath, dirname
-from munch import DefaultMunch
 
 from core.mkv import MkvMerge, Mkv
 from core.shell import Shell
@@ -14,7 +13,7 @@ from core.pgsreader import PGSReader
 try:
     from core.guess import guess_args
 except ImportError:
-    guess_args = lambda *args, **kwargs: DefaultMunch()
+    guess_args = lambda *args, **kwargs: None
 
 
 def parse_track(tracks):
@@ -74,7 +73,7 @@ if __name__ == "__main__":
     parser.add_argument('--vo', help='Idioma de la versión original (mkvmerge --list-languages)', choices=langs)
     parser.add_argument('--tracks', nargs="*", help='tracks a preservar en formato source:id')
     parser.add_argument('--out', type=str, help='Fichero salida para mkvmerge', default='.')
-    parser.add_argument('--srt', type=int, help='Convertir a srt los subtítulos con X colisiones o menos', default=0)
+    parser.add_argument('--srt', type=int, help='Convertir a srt los subtítulos con X colisiones o menos', default=-1)
     parser.add_argument('--dry', action="store_true", help='Imprime el comando mkvmerge sin ejecutarlo')
     parser.add_argument('files', nargs="+", help='Ficheros a mezclar')
     pargs = parser.parse_args()
@@ -83,23 +82,14 @@ if __name__ == "__main__":
         if not isfile(file):
             sys.exit("No existe: " + file)
 
-    gargs = guess_args(pargs)
-    if isdir(pargs.out):
-        if gargs.out is None:
-            sys.exit("No se puede adivinar el nombre de fichero destino, proporcionelo usando --out")
-        pargs.out = pargs.out + '/' + gargs.out
+    guess_args(pargs)
+    
+    if pargs.out is None or isdir(pargs.out):
+        sys.exit("No se puede adivinar el nombre de fichero destino, proporcionelo usando --out")
     if pargs.out in pargs.files:
         sys.exit("El fichero de entrada y salida no pueden ser el mismo")
     if isfile(pargs.out):
         sys.exit("Ya existe: " + pargs.out)
-    if pargs.vo is None:
-        pargs.vo = gargs.vo
-    if pargs.und is None and gargs.und is not None:
-        pargs.und = gargs.und
-    if pargs.srt == 0 and gargs.srt is not None:
-        pargs.srt = gargs.srt
-    if (pargs.tracks is None or len(pargs.tracks) == 0) and gargs.tracks is not None:
-        pargs.tracks = gargs.tracks
         
     drout = dirname(realpath(pargs.out))
     if drout and not isdir(drout):

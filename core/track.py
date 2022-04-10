@@ -137,6 +137,8 @@ class Track(DefaultMunch):
             return "Coreano"
         if self.lang in ("fr", "fre"):
             return "Francés"
+        if self.lang in ("zh", "chi"):
+            return "Chino"
         label = MKVLANG.description.get(self.lang)
         if label:
             return label
@@ -178,6 +180,8 @@ class Track(DefaultMunch):
             return "opus"
         if self.codec == "TrueHD Atmos":
             return "TrueHD"
+        if "WMV3" in self.codec:
+            return "wmv"
         raise Exception("Extensión no encontrada para: {codec}".format(**dict(self)))
 
     def set_lang(self, lang):
@@ -245,6 +249,8 @@ class VideoTrack(Track):
             lb = "HDMV"
         if "MPEG-4p2" in self.codec:
             lb = "MPEG-4p2"
+        if "WMV3" in self.codec:
+            lb = "wmv"
         if lb is None:
             raise Exception("codec no reconocido %s" % self.codec)
         if self.pixel_dimensions:
