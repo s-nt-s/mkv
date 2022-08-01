@@ -24,6 +24,8 @@ Palette = namedtuple('Palette', "Y Cr Cb Alpha")
 class InvalidSegmentError(Exception):
     '''Raised when a segment does not match PGS specification'''
 
+class InvalidSegmentType(InvalidSegmentError):
+    pass
 
 def mseg_srt(msc):
     sec = floor(msc / 1000)
@@ -43,7 +45,10 @@ class PGSReader:
             self.bytes = f.read()
 
     def make_segment(self, bytes_):
-        cls = SEGMENT_TYPE[bytes_[10]]
+        try:
+            cls = SEGMENT_TYPE[bytes_[10]]
+        except KeyError:
+            raise InvalidSegmentType("{} {} not in SEGMENT_TYPE".format(self.file, bytes_[10]))
         return cls(bytes_)
 
     def iter_segments(self):

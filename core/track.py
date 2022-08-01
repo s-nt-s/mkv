@@ -6,7 +6,7 @@ from os.path import isfile, getsize, basename
 from .shell import Shell
 from .util import LANG_ES, trim, read_file, get_printable, to_utf8
 from .sub import Sub
-from .pgsreader import PGSReader
+from .pgsreader import PGSReader, InvalidSegmentError
 
 re_doblage = re.compile(r"((?:19|20)\d\d+)", re.IGNORECASE)
 
@@ -36,23 +36,30 @@ class Track(DefaultMunch):
             self.track_name = None
         if "source_file" not in self:
             self.source_file = None
+
+        guess_lang = []
         if self.source_file:
+            guess_lang.append(basename(self.source_file))
             if self.track_name is None:
                 self.track_name = basename(self.source_file)
                 self.fake_name = True
+            else:
+                guess_lang.append(self.track_name)
+        elif self.track_name:
+            guess_lang.append(self.track_name)
+        while self.isUnd and guess_lang:
+            lw_name = guess_lang.pop(0).lower()
+            st_name = set(re.split(r"[\.]+", lw_name))
+            if re.search(r"\b(español|castellano|spanish|)\b|\[esp\]", lw_name) or st_name.intersection({"es", }):
+                self.set_lang("spa")
+            if re.search(r"\b(ingles|english)\b", lw_name) or st_name.intersection({"en", }):
+                self.set_lang("eng")
+            if re.search(r"\b(japon[ée]s|japanese)\b", lw_name) or st_name.intersection({"ja", }):
+                self.set_lang("jpn")
             if self.isUnd:
-                lw_name = basename(self.source_file).lower()
-                st_name = set(re.split(r"[\.]+", lw_name))
-                if re.search(r"\b(español|castellano|spanish|)\b|\[esp\]", lw_name) or st_name.intersection({"es", }):
-                    self.set_lang("spa")
-                if re.search(r"\b(ingles|english)\b", lw_name) or st_name.intersection({"en", }):
-                    self.set_lang("eng")
-                if re.search(r"\b(japon[ée]s|japanese)\b", lw_name) or st_name.intersection({"ja", }):
-                    self.set_lang("jpn")
-                if self.isUnd:
-                    self.set_lang(self.und or "und")
-                if re.search(r"\b(forzados?)\b", lw_name) or st_name.intersection({"forzados", "forzado"}):
-                    self.forced_track = 1
+                self.set_lang(self.und or "und")
+            if re.search(r"\b(forzados?)\b", lw_name) or st_name.intersection({"forzados", "forzado"}):
+                self.forced_track = 1
 
     @staticmethod
     def build(source, arg):
@@ -164,7 +171,7 @@ class Track(DefaultMunch):
             return "pgs"
         if self.codec in ("AC-3", "AC-3 Dolby Surround EX", "E-AC-3"):
             return "ac3"
-        if self.codec in ("DTS", "DTS-ES", "DTS-HD Master Audio"):
+        if self.codec in ("DTS", "DTS-ES", "DTS-HD Master Audio", "DTS-HD High Resolution Audio"):
             return "dts"
         if self.codec_id == "A_VORBIS":
             return "ogg"
@@ -330,7 +337,10 @@ class SubTrack(Track):
             return lines
         if self.source_file.endswith(".pgs"):
             pgs = PGSReader(self.source_file)
-            dss = list(ds for ds in pgs.displaysets if ds.has_image)
+            try:
+                dss = list(ds for ds in pgs.displaysets if ds.has_image)
+            except InvalidSegmentError:
+                return 0
             return len(dss)
         if self.source_file.endswith(".sub"):
             idx = self.source_file.rsplit(".", 1)[0] + ".idx"
