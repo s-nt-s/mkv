@@ -74,6 +74,7 @@ if __name__ == "__main__":
     parser.add_argument('--tracks', nargs="*", help='tracks a preservar en formato source:id')
     parser.add_argument('--out', type=str, help='Fichero salida para mkvmerge', default='.')
     parser.add_argument('--srt', type=int, help='Convertir a srt los subtítulos con X colisiones o menos', default=-1)
+    parser.add_argument('--trim', help='Recortar el video usando --split parts:')
     parser.add_argument('--dry', action="store_true", help='Imprime el comando mkvmerge sin ejecutarlo')
     parser.add_argument('files', nargs="+", help='Ficheros a mezclar')
     pargs = parser.parse_args()
@@ -99,5 +100,5 @@ if __name__ == "__main__":
     pargs.tracks = parse_track(pargs.tracks)
 
     mrg = MkvMerge(vo=pargs.vo, und=pargs.und, dry=pargs.dry)
-    mrg.merge(pargs.out, *pargs.files, tracks_selected=pargs.tracks, do_srt=pargs.srt)
+    mrg.merge(pargs.out, *pargs.files, tracks_selected=pargs.tracks, do_srt=pargs.srt, do_trim=pargs.trim)
     print("")

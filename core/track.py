@@ -72,7 +72,7 @@ class Track(DefaultMunch):
             if track.get('type') == "subtitles":
                 f = to_utf8(file)
                 if f not in (None, file):
-                    return Track.build_track(source, f)
+                    return Track.build(source, f)
             if len(tinfo.get("chapters", [])) == 1 and tinfo.chapters[0].num_entries == 1:
                 rm_chapters = True
 

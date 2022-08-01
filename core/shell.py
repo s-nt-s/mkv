@@ -42,7 +42,7 @@ class Shell:
                     a = "\\\n  " + a
                 elif args[index - 2] == "-o" and "--title" not in args:
                     a = "\\\n  " + a
-                elif args[index - 2] == "--title":
+                elif args[index - 2] in ("--title", "--global-tags", "--split", "--track-order"):
                     a = "\\\n  " + a
                 elif isfile(args[index - 1]) and a != "--title":
                     a = "\\\n  " + a

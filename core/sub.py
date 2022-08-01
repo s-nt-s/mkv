@@ -5,7 +5,7 @@ from functools import lru_cache
 
 from .util import backtwo, to_utf8
 
-re_nosub = re.compile(r"\bnewpct(\d+)?\.com|\baddic7ed\.com|atomixhq\.com|^Subida x")
+re_nosub = re.compile(r"\bnewpct(\d+)?\.com|\baddic7ed\.com|atomixhq\.com|^Subida x|YTS")
 
 
 class SubLine:

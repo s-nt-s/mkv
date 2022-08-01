@@ -680,15 +680,21 @@ class MkvMerge:
 
         return newordr
 
-    def merge(self, output: str, *files: Track, tracks_selected: list = None, do_srt: int = -1) -> Mkv:
+    def merge(self, output: str, *files: Track, tracks_selected: list = None, do_srt: int = -1, do_trim:str = None) -> Mkv:
         src = []
         fl_chapters = None
+        lg_chapters = None
         fl_tags = None
         cm_tag = SetList()
 
         for f in files:
             if basename(f) in ("chapters.xml", "chapters.txt"):
                 fl_chapters = f
+                continue
+            m = re.match(r"^chapters.(\w+).txt$", basename(f))
+            if m:
+                fl_chapters = f
+                lg_chapters = m.group(1)
                 continue
             if basename(f) == "tags.xml":
                 fl_tags = f
@@ -804,15 +810,23 @@ class MkvMerge:
                 arr.append(s.source_file)
 
         if fl_chapters is not None:
+            if lg_chapters is not None:
+                arr.extend(["--chapter-language", lg_chapters])
             arr.extend(["--chapters", fl_chapters])
 
         if fl_tags is None:
             fl_tags = TMP + "/tags.xml"
             cm_tag.extend((basename(a) for a in arr if isfile(a)))
             write_tags(fl_tags, COMMENT=cm_tag)
+
+        if do_trim:
+            arr.extend(["--split", "parts:"+do_trim])
+            
         arr.extend(["--global-tags", fl_tags])
 
         arr.extend("--track-order " + ",".join(newordr))
+
+        
         mkv = self.mkvmerge(output, *arr)
         if self.dry or mkv is None:
             return
