@@ -50,7 +50,7 @@ class Track(DefaultMunch):
         while self.isUnd and guess_lang:
             lw_name = guess_lang.pop(0).lower()
             st_name = set(re.split(r"[\.]+", lw_name))
-            if re.search(r"\b(español|castellano|spanish|)\b|\[esp\]", lw_name) or st_name.intersection({"es", }):
+            if re.search(r"\b(español|castellano|spanish)\b|\[esp\]", lw_name) or st_name.intersection({"es", }):
                 self.set_lang("spa")
             if re.search(r"\b(ingles|english)\b", lw_name) or st_name.intersection({"en", }):
                 self.set_lang("eng")

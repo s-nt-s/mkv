@@ -209,7 +209,7 @@ class Mkv:
             arrg.append(str(track.id) + ":" + out)
 
         cod = Shell.run("mkvextract", self.file, *arrg, **kwargs)
-        if cod != 0:
+        if cod not in (0, 1):
             raise Exception("Error al usar mkvextract")
         return tuple(outs)
 
@@ -266,7 +266,7 @@ class Mkv:
                 track = audio[0]
                 print("# und -> {} {}".format(self.vo, track))
                 track.set_lang(self.vo)
-            
+
 
             isUnd = [t for t in arr if t.isUnd]
             if len(isUnd):
@@ -821,12 +821,12 @@ class MkvMerge:
 
         if do_trim:
             arr.extend(["--split", "parts:"+do_trim])
-            
+
         arr.extend(["--global-tags", fl_tags])
 
         arr.extend("--track-order " + ",".join(newordr))
 
-        
+
         mkv = self.mkvmerge(output, *arr)
         if self.dry or mkv is None:
             return

@@ -46,7 +46,7 @@ if __name__ == "__main__":
                         print("")
                         print(cls)
                 sys.exit()
-            if ext in ("sup", "pgs"):
+            if ext in ("sup", "pgs", "sub"):
                 print("OUT:", PGSReader(fln).fake_srt())
                 sys.exit()
 
