@@ -376,6 +376,10 @@ class Mkv:
                     print("# RM {} por estar vacio".format(s))
                     self._core.ban[s.type].add(s.id)
                     continue
+                if s.type == 'subtitles' and s.lines == 1 and s.srt_lines():
+                    print("# RM {} por tener una solo linea {}".format(s, s.srt_lines()[0]))
+                    self._core.ban[s.type].add(s.id)
+                    continue
                 if s.lang and s.type in ('subtitles', 'audio'):
                     if s.lang not in self.main_lang or (s.type == 'subtitles' and s.lang not in set(LANG_SB).intersection(self.main_lang)):
                         self._core.ban[s.type].add(s.id)

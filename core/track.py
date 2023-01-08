@@ -325,6 +325,12 @@ class SubTrack(Track):
                 return True
         return False
 
+    def srt_lines(self) -> list:
+        if self.text_subtitles:
+            sb = Sub(self.source_file)
+            lines = list(sb.load("srt"))
+            return lines
+
     @property
     def lines(self) -> int:
         if not self.has_file():
