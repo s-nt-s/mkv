@@ -153,9 +153,13 @@ class Track(DefaultMunch):
 
     @property
     def isLatino(self) -> bool:
+        if isinstance(self, SubTrack) and self.has_file():
+            for line in (self.srt_lines() or []):
+                if line.text == "Subtítulos: Luciana L.B.T.":
+                    return True
         if self.track_name is None or self.lang not in LANG_ES:
             return False
-        if "latino" in self.track_name.lower():
+        if set({'latin', 'latino'}).intersection(self.track_name.lower().split()):
             return True
         if self.track_name == "LRL":
             return True
