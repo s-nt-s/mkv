@@ -685,7 +685,7 @@ class MkvMerge:
 
         return newordr
 
-    def merge(self, output: str, *files: Track, tracks_selected: list = None, do_srt: int = -1, do_trim:str = None) -> Mkv:
+    def merge(self, output: str, *files: Track, tracks_selected: list = None, do_srt: int = -1, do_trim:str = None, no_chapters:bool = False) -> Mkv:
         src = []
         fl_chapters = None
         lg_chapters = None
@@ -800,7 +800,7 @@ class MkvMerge:
                 elif len(mkv.attachments) < len(mkv.info.attachments):
                     sip = ",".join(map(str, sorted(a.id for a in mkv.attachments)))
                     arr.extend("-m {}", sip)
-                if fl_chapters is not None or mkv.num_chapters == 1 or len(mkv.get_tracks('video')) == 0:
+                if no_chapters or (fl_chapters is not None or mkv.num_chapters == 1 or len(mkv.get_tracks('video')) == 0):
                     arr.extend("--no-chapters")
                 for t in sorted(mkv.tracks, key=lambda x: newordr.index("{source}:{id}".format(**dict(x)))):
                     chg = t.get_changes()
@@ -815,7 +815,7 @@ class MkvMerge:
                 arr.extend("--default-track {}:{}", s.id, chg.default_track)
                 arr.extend("--forced-track {}:{}", s.id, chg.forced_track)
                 arr.extend(["--track-name", "{}:{}".format(s.id, chg.track_name)])
-                if s.rm_chapters:
+                if no_chapters or s.rm_chapters:
                     arr.extend("--no-chapters")
                 if s.type == 'subtitles':
                     arr.extend("--sub-charset {}:{}", s.id, get_encoding_type(s.source_file))
