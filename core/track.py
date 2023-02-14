@@ -62,7 +62,7 @@ class Track(DefaultMunch):
                 self.forced_track = 1
 
     @staticmethod
-    def build(source, arg):
+    def build(source, arg, trim=None):
         file = None
         track = None
         rm_chapters = None
@@ -89,6 +89,7 @@ class Track(DefaultMunch):
         data.type = track.type
         data.source = source
         data.source_file = file
+        data.trim = trim
 
         if track.type == 'subtitles':
             return SubTrack(**dict(data), rm_chapters=rm_chapters, _original=track.properties.copy())
@@ -343,7 +344,12 @@ class SubTrack(Track):
             return 0
         if self.text_subtitles:
             sb = Sub(self.source_file)
-            lines = len(sb.load("srt"))
+            lines = list(sb.load("srt"))
+            if self.trim:
+                for i, x in reversed(list(enumerate(lines))):
+                    if x.end < (self.trim.start*1000) or x.start > (self.end*1000):
+                        del lines[i]
+            lines = len(lines)
             return lines
         if self.source_file.endswith(".pgs"):
             pgs = PGSReader(self.source_file)
@@ -359,6 +365,11 @@ class SubTrack(Track):
                 lines = 0
                 for l in txt.split("\n"):
                     if l.strip().startswith("timestamp: "):
+                        if self.trim is not None:
+                            h, m, s, ms = map(int, l[11:23].split(":"))
+                            seg = h*60*60 + m*60 + s + (ms/1000)
+                            if seg < self.trim.start or seg > self.trim.end:
+                                continue
                         lines = lines + 1
                 return lines
 

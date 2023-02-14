@@ -60,13 +60,14 @@ class Duration:
 
 
 class Mkv:
-    def __init__(self, file: str, vo: str = None, und: str = None, source: int = 0, tracks_selected: list = None):
+    def __init__(self, file: str, vo: str = None, und: str = None, source: int = 0, tracks_selected: list = None, trim=None):
         self.file = file
         self._core = DefaultMunch()
         self.und = und
         self.vo = vo
         self.source = source
         self.tracks_selected = tracks_selected
+        self.trim = trim
 
     def mkvextract(self, *args, model="tracks", **kwargs):
         if len(args) > 0:
@@ -223,7 +224,7 @@ class Mkv:
         if self._core.tracks is None:
             arr = []
             for t in self.info.tracks:
-                track = Track.build(self.source, t)
+                track = Track.build(self.source, t, trim=self.trim)
                 track.mkv = self
                 if track.type == "video":
                     track.duration = self.duration
@@ -690,6 +691,13 @@ class MkvMerge:
         lg_chapters = None
         fl_tags = None
         cm_tag = SetList()
+        trim = None
+        if do_trim:
+            def to_sec(s):
+                h, m, s = map(float, s.split(":"))
+                return h*60*60 + m*60 + s
+            start, end = map(to_sec, do_trim.split('-'))
+            trim=Munch(start=start, end=end)
 
         for f in files:
             if basename(f) in ("chapters.xml", "chapters.txt"):
@@ -705,11 +713,11 @@ class MkvMerge:
                 continue
             ext = f.rsplit(".", 1)[-1].lower()
             if ext in ("mkv", "mp4", "avi"):
-                mkv = Mkv(f, source=len(src), und=self.und, vo=self.vo, tracks_selected=tracks_selected)
+                mkv = Mkv(f, source=len(src), und=self.und, vo=self.vo, tracks_selected=tracks_selected, trim=trim)
                 src.append(mkv)
                 cm_tag.extend(mkv.get_tag('COMMENT', split_lines=True))
             else:
-                track = Track.build(len(src), f)
+                track = Track.build(len(src), f, trim=trim)
                 src.append(track)
 
         videos = self.get_tracks('video', src)
