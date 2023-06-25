@@ -1,11 +1,58 @@
 import re
 
 import pysubs2
-from functools import lru_cache
+from functools import cache
+from typing import Tuple, List
+from os.path import splitext
 
 from .util import backtwo, to_utf8
 
-re_nosub = re.compile(r"\bnewpct(\d+)?\.com|\baddic7ed\.com|atomixhq\.com|^Subida x|YTS")
+re_nosub = re.compile("|".join(x.pattern for x in map(re.compile, [
+    r"\bnewpct(\d+)?\.com",
+    r"\baddic7ed\.com",
+    r"atomixhq\.com",
+    r"^Subida x",
+    r"YTS",
+    r"UNA?.*ORIGINAL DE NETFLIX",
+    r"PRODUCID[OA] POR NETFLIX",
+    r"EN COLABORACIÓN CON NETFLIX",
+])))
+
+class SSAFile(pysubs2.SSAFile):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _enum(self) -> List[Tuple[int, pysubs2.SSAEvent]]:
+        return list(enumerate(self))
+
+    def _revenum(self) -> List[Tuple[int, pysubs2.SSAEvent]]:
+        return list(reversed(self._enum()))
+
+    def _backtwo(self) -> List[Tuple[int, pysubs2.SSAEvent, pysubs2.SSAEvent]]:
+        return list(backtwo(self))
+
+    def improve(self):
+        bk_len = len(self)
+        self.sort()
+        for i, s in self._revenum():
+            if re_nosub.search(s.text) or len(s.text.strip()) == 0:
+                del self[i]
+        flag = len(self) + 1
+        while len(self) < flag:
+            flag = len(self)
+            for i, s in self._revenum():
+                for o in self[:i]:
+                    if o.text == s.text and o.start <= s.start <= o.end:
+                        if s.end > o.end:
+                            o.end = s.end
+                        del self[i]
+                        break
+            for i, s, prev in self._backtwo():
+                if s.text != prev.text and (s.start, s.end) == (prev.start, s.end):
+                    prev.text = prev.text + "\n" + s.text
+                    del self[i]
+            self.sort()
+        return (len(self) < bk_len)
 
 
 class SubLine:
@@ -14,7 +61,7 @@ class SubLine:
         self.line = line
 
     def __str__(self):
-        fk_sub = pysubs2.SSAFile()
+        fk_sub = SSAFile()
         fk_sub.insert(0, self.line)
         fk_str = fk_sub.to_string('srt')
         fk_str = re.sub(r"^\d+\s*|\s*$", "", fk_str)
@@ -36,54 +83,55 @@ class SubLines:
 class Sub:
     def __init__(self, file: str):
         self.file = to_utf8(file)
+        self.__improvable = None
 
     @staticmethod
-    @lru_cache(maxsize=None)
-    def read(file) -> pysubs2.SSAFile:
+    def read(file: str) -> SSAFile:
         try:
-            return pysubs2.load(file)
+            subs = pysubs2.load(file)
+            subs.__class__ = SSAFile
+            return subs
         except ValueError:
             typ = file.rsplit(".", 1)[-1].lower()
             with open(file, "r") as f:
                 text = f.read()
             text = text.replace("Dialogue: Marked=0,", "Dialogue: 0,")
-            return pysubs2.SSAFile.from_string(text, format=typ)
+            subs = pysubs2.SSAFile.from_string(text, format=typ)
+            subs.__class__ = SSAFile
+            return subs
 
-    @staticmethod
-    @lru_cache(maxsize=None)
-    def st_load(file, to_type: str = None) -> pysubs2.SSAFile:
-        subs = Sub.read(file)
+    def transform(self, format_: str):
+        subs = self.load()
+        strng = subs.to_string(format_)
+        if strng.strip():
+            subs = pysubs2.SSAFile.from_string(strng, format=format_)
+            subs.__class__ = SSAFile
         subs.sort()
-        if to_type and not file.endswith("." + to_type):
-            strng = subs.to_string(to_type)
-            if strng.strip():
-                subs = pysubs2.SSAFile.from_string(strng, format=to_type)
-            subs.sort()
-        for i, s in reversed(list(enumerate(subs))):
-            if re_nosub.search(s.text) or len(s.text.strip()) == 0:
-                del subs[i]
-        flag = len(subs) + 1
-        while len(subs) < flag:
-            flag = len(subs)
-            for i, s in reversed(list(enumerate(subs))):
-                for o in subs[:i]:
-                    if o.text == s.text and o.start <= s.start <= o.end:
-                        if s.end > o.end:
-                            o.end = s.end
-                        del subs[i]
-                        break
-            for i, s, prev in backtwo(subs):
-                if s.text != prev.text and (s.start, s.end) == (prev.start, s.end):
-                    prev.text = prev.text + "\n" + s.text
-                    del subs[i]
-            subs.sort()
         return subs
 
-    def load(self, to_type: str = None) -> pysubs2.SSAFile:
-        return Sub.st_load(self.file, to_type)
+    def load(self) -> SSAFile:
+        subs = Sub.read(self.file)
+        subs.improve()
+        if self.format == "srt":
+            text = subs.to_string(self.format)
+            n_text = str(text)
+            n_text = re.sub(r"</(i|b)>([ \t]*)<\1>", r"\2", n_text)
+            n_text = re.sub(r"<(i|b)>([ \t]*)</\1>", r"\2", n_text)
+            if text != n_text:
+                subs = pysubs2.SSAFile.from_string(n_text, format=self.format)
+                subs.__class__ = SSAFile
+        return subs
 
     @property
-    def fonts(self) -> tuple:
+    def isImprovable(self):
+        with open(self.file, "r") as f:
+            old = f.read()
+        subs = self.load()
+        new = subs.to_string(self.format)
+        return old.strip() != new.strip()
+
+    @property
+    def fonts(self) -> tuple[str]:
         subs = Sub.read(self.file)
         fonts = set()
         for f in subs.styles.values():
@@ -95,28 +143,17 @@ class Sub:
     def save(self, out: str) -> str:
         if "." not in out:
             out = self.file + "." + out
-        to_type = out.rsplit(".", 1)[-1]
         if out == self.file:
-            out = out + "." + to_type
-        subs = self.load(to_type=to_type)
+            out = out + "." + out.rsplit(".", 1)[-1]
+        subs = self.load()
         subs.save(out)
-
-        if to_type == "srt":
-            with open(out, "r") as f:
-                text = f.read()
-            n_text = str(text)
-            n_text = re.sub(r"</(i|b)>([ \t]*)<\1>", r"\2", n_text)
-            n_text = re.sub(r"<(i|b)>([ \t]*)</\1>", r"\2", n_text)
-            if text != n_text:
-                with open(out, "w") as f:
-                    f.write(n_text)
         return out
 
     def get_collisions(self):
-        subs = self.load("srt")
+        subs = self.transform("srt")
         subs.sort()
         times = {}
-        for indx, s in enumerate(subs):
+        for indx, s in subs._enum():
             for i in range(s.start, s.end):
                 if i not in times:
                     times[i] = []
@@ -137,3 +174,12 @@ class Sub:
             for indx in v:
                 rtn.append(SubLine(indx + 1, subs[indx]))
             yield rtn
+
+    @property
+    def format(self):
+        return Sub.get_format(self.file)
+
+    @staticmethod
+    def get_format(file: str):
+        ext = splitext(file)[1].lower()
+        return pysubs2.ssafile.get_format_identifier(ext)

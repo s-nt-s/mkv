@@ -98,7 +98,7 @@ def trim(s):
     return s
 
 
-def read_file(file):
+def read_file(file: str):
     if file is None or not isfile(file):
         return None
     ext = file.rsplit(".", 1)
@@ -127,3 +127,18 @@ def my_filter(arr, *funcs):
         if all_ko:
             rt[-1].append(item)
     return rt
+
+
+class SetList(list):
+    def append(self, obj) -> None:
+        if obj not in self:
+            super().append(obj)
+
+    def extend(self, objs) -> None:
+        for obj in objs:
+            self.append(obj)
+
+
+class BadType(ValueError):
+    def __init__(self, obj):
+        super().__init__("Tipo no reconocido "+str(type(obj)))

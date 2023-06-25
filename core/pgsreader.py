@@ -1,6 +1,5 @@
 import logging
 from collections import namedtuple
-from os.path import split as pathsplit
 from math import floor
 
 log = logging.getLogger(__name__)

@@ -1,12 +1,9 @@
-import json
 import logging
 import re
 import subprocess
 import sys
 from os import getcwd, chdir
 from os.path import isfile, dirname, basename
-
-from munch import Munch, DefaultMunch
 
 log = logging.getLogger(__name__)
 re_track = re.compile(r"^(\d+):.*")
@@ -89,16 +86,6 @@ class Shell:
         output = subprocess.check_output(args, **kargv)
         output = output.decode(sys.stdout.encoding)
         return output
-
-    @staticmethod
-    def mkvinfo(file, **kwargs) -> Munch:
-        arr = Args()
-        arr.extend("mkvmerge -J")
-        arr.append(file)
-        js = Shell.get(*arr, **kwargs)
-        js = json.loads(js)
-        js = DefaultMunch.fromDict(js)
-        return js
 
     @staticmethod
     def mediainfo(file, **kwargs):
