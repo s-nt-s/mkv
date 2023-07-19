@@ -13,6 +13,7 @@ from .mkvutil import MkvInfo, Duration, Trim
 from .track import Track, SubTrack, Attachment, TrackList, TrackTuple
 from .util import LANG_ES, LANG_SB, TMP, SetList, get_title, get_encoding_type, BadType
 from .mkvcore import MkvCore
+from .sub import Sub
 
 
 def write_tags(file, **kwargs):
@@ -241,7 +242,7 @@ class Mkv:
             if s.lines == 1 and s.srt_lines():
                 s.ban("# RM {} por tener una solo linea {}".format(s, s.srt_lines()[0]))
                 continue
-            if s.lang and s.lang not in self.main_lang or (s.lang not in set(LANG_SB).intersection(self.main_lang)):
+            if s.lang and s.lang not in self.main_lang:# or (s.lang not in set(LANG_SB).intersection(self.main_lang)):
                 s.ban("# RM {} por idioma".format(s))
                 continue
 
@@ -376,7 +377,7 @@ class Mkv:
         out = f"{track.id}:{name}.{track.file_extension}"
         self.mkvextract(out)
 
-    def sub_extract(self):
+    def get_main_extract(self):
         isEs = False
         for a in self.tracks.audio:
             if a.lang in LANG_ES:
@@ -395,10 +396,7 @@ class Mkv:
         if track is None and full:
             track = full
         if track is not None:
-            name = self.file.rsplit(".", 1)[0]
-            out = f"{track.id}:{name}.{track.file_extension}"
-            print("# Para extraer el subtítulo principal haz:")
-            print("$", Shell.to_str("mkvextract", "tracks", self.file, out))
+            return track
 
 
 class MkvMerge:
@@ -628,11 +626,11 @@ class MkvMerge:
                 s.ban("# MV {} convertido a SRT".format(s))
                 continue
             print("# ¡! {} podría ser convertido a SRT ({collisions} colisiones)".format(s, collisions=s.collisions))
-        for s in self.get_tracks(src).text_subtitles:
-            if s.file_extension == "srt" and s.to_sub().isImprovable:
-                src.append(s.to_srt(source=len(src)))
-                s.ban("# MV {} limpiado SRT".format(s))
-                continue
+        # for s in self.get_tracks(src).text_subtitles:
+        #    if s.file_extension == "srt" and s.to_sub().isImprovable:
+        #        src.append(s.to_srt(source=len(src)))
+        #        s.ban("# MV {} limpiado SRT".format(s))
+        #        continue
 
         newordr = self.make_order(src, main_order=tracks_selected)
 
@@ -700,5 +698,4 @@ class MkvMerge:
         print("#", mkv.info.container.properties.title)
         for t in mkv.tracks:
             print(f"# {t.id}:{t.language} {t.track_name}")
-        mkv.sub_extract()
         return mkv
