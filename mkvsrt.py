@@ -13,7 +13,7 @@ from core.util import TMP
 if __name__ == "__main__":
     langs = sorted(k for k in MKVLANG.code.keys() if len(k) == 2)
     parser = argparse.ArgumentParser("Estrae el subtitulo principal y lo convirte a srt para TV antiguas")
-    parser.add_argument('files', nargs="+", help='Ficheros a mezclar')
+    parser.add_argument('files', nargs="+", help='Ficheros mkv')
     pargs = parser.parse_args()
     for file in pargs.files:
         mkv = Mkv(file)
