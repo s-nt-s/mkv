@@ -38,7 +38,7 @@ def write_tags(file, **kwargs):
 
 
 class Mkv:
-    def __init__(self, file: str, vo: str = None, und: str = None, source: int = 0, tracks_selected: list = None, trim=None):
+    def __init__(self, file: str, vo: str = None, und: str = None, source: int = 0, tracks_selected: list = None, tracks_rm: list = None, trim=None):
         self.file = file
         self.__core: Union[MkvCore, None] = None
         self.__all_tracks: Union[TrackTuple, None] = None
@@ -46,6 +46,7 @@ class Mkv:
         self.vo = vo
         self.source = source
         self.tracks_selected = tracks_selected
+        self.tracks_rm = tracks_rm
         self.trim = trim
         self.reset()
 
@@ -70,7 +71,7 @@ class Mkv:
     @property
     def num_chapters(self):
         return self.__core.num_chapters
-    
+
     @property
     def info(self) -> MkvInfo:
         return self.__core.info
@@ -104,7 +105,7 @@ class Mkv:
             if not t.banned:
                 arr.append(t)
         return TrackTuple(arr)
-    
+
     @property
     def all_tracks(self):
         if self.__all_tracks is None:
@@ -153,6 +154,14 @@ class Mkv:
 
             if len(arr.audio) == 1 and arr.audio[0].isUnd and self.vo is not None:
                 track = arr.audio[0]
+                print("# und -> {} {}".format(self.vo, track))
+                track.set_lang(self.vo)
+
+            if len(arr.audio) == 2 and self.vo is not None and (arr.audio[0].isUnd, arr.audio[0].isUnd) == (True, True) :
+                track = arr.audio[0]
+                print("# und -> {} {}".format("es", track))
+                track.set_lang("spa")
+                track = arr.audio[1]
                 print("# und -> {} {}".format(self.vo, track))
                 track.set_lang(self.vo)
 
@@ -230,10 +239,15 @@ class Mkv:
                 if srcid not in self.tracks_selected:
                     s.ban("# RM {}".format(s))
             return
-        
+        if isinstance(self.tracks_rm, list):
+            for s in tracks:
+                srcid = "{}:{}".format(self.source, s.id)
+                if srcid in self.tracks_rm:
+                    s.ban("# RM {} por parámetro".format(s))
+
         for s in tracks.audio:
-            if s.track_name and s.track_name.endswith(' (Audio Description)'):
-                s.ban("# RM {} por audio-description".format(s))
+            if s.isAudioComentario:
+                s.ban("# RM {} por audiocomentario".format(s))
                 continue
             if s.lang and s.lang not in self.main_lang:
                 s.ban("# RM {} por idioma".format(s))
@@ -538,7 +552,7 @@ class MkvMerge:
 
         return newordr
 
-    def merge(self, output: str, *files: str, tracks_selected: list = None, do_srt: int = -1, do_trim:str = None, no_chapters:bool = False) -> Mkv:
+    def merge(self, output: str, *files: str, tracks_selected: list = None, tracks_rm: list = None, do_srt: int = -1, do_trim:str = None, no_chapters:bool = False) -> Mkv:
         src: List[Union[Mkv, Track]] = []
         fl_chapters = None
         lg_chapters = None
@@ -566,7 +580,7 @@ class MkvMerge:
                 continue
             ext = f.rsplit(".", 1)[-1].lower()
             if ext in ("mkv", "mp4", "avi"):
-                mkv = Mkv(f, source=len(src), und=self.und, vo=self.vo, tracks_selected=tracks_selected, trim=trim)
+                mkv = Mkv(f, source=len(src), und=self.und, vo=self.vo, tracks_selected=tracks_selected, tracks_rm=tracks_rm, trim=trim)
                 src.append(mkv)
                 cm_tag.extend(mkv.tags.get_tag('COMMENT', split_lines=True))
             else:

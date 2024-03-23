@@ -221,11 +221,24 @@ class Track(BannableItem):
             for line in (self.srt_lines() or []):
                 if line.text == "Subtítulos: Luciana L.B.T.":
                     return True
+                if line.text == "Subtítulos: Pablo Miguel Kemmerer":
+                    #TODO: No estoy seguro, revisar
+                    return True
         if self.track_name is None or self.lang not in LANG_ES:
             return False
-        if set({'latin', 'latino'}).intersection(self.track_name.lower().split()):
+        if set({'latin', 'latino', 'latinoamericano'}).intersection(self.track_name.lower().split()):
             return True
         if self.track_name == "LRL":
+            return True
+        return False
+
+    @property
+    def isAudioComentario(self) -> bool:
+        if self.track_name is None:
+            return False
+        if set({'audiocomentario', 'commentary'}).intersection(self.track_name.lower().split()):
+            return True
+        if self.track_name.endswith(' (Audio Description)'):
             return True
         return False
 
@@ -253,7 +266,7 @@ class Track(BannableItem):
             return "sub"
         if self.codec == "Opus":
             return "opus"
-        if self.codec == "TrueHD Atmos":
+        if self.codec in ("TrueHD Atmos", "TrueHD"):
             return "TrueHD"
         if "WMV3" in self.codec:
             return "wmv"
@@ -383,6 +396,8 @@ class SubTrack(Track):
         arr = [self.lang_name]
         if self.forced_track:
             arr.append("forzados")
+        if self.track_name and re.search(r"\bSDH\b", self.track_name):
+            arr.append("SDH")
         arr.append("(" + self.file_extension + ")")
         if self.lines:
             arr.append("({} línea{})".format(self.lines, "s" if self.lines > 1 else ""))
@@ -502,7 +517,7 @@ class Attachment(BannableItem):
     def isFont(self):
         typ = (self.content_type or '').lower()
         ext = (self.file_name or '').rsplit(".", 1)[-1].lower()
-        return ext in ("ttc", ) or typ in ("application/x-truetype-font", "application/vnd.ms-opentype")
+        return ext in ("ttc", ) or typ.startswith("font/") or typ in ("application/x-truetype-font", "application/vnd.ms-opentype")
 
 
 class TrackIter:

@@ -72,6 +72,7 @@ if __name__ == "__main__":
     parser.add_argument('--und', help='Idioma para pistas und (mkvmerge --list-languages)', choices=langs)
     parser.add_argument('--vo', help='Idioma de la versión original (mkvmerge --list-languages)', choices=langs)
     parser.add_argument('--tracks', nargs="*", help='tracks a preservar en formato source:id')
+    parser.add_argument('--tracks-rm', nargs="*", help='tracks a eliminar en formato source:id')
     parser.add_argument('--out', type=str, help='Fichero salida para mkvmerge', default='.')
     parser.add_argument('--srt', type=int, help='Convertir a srt los subtítulos con X colisiones o menos', default=-1)
     parser.add_argument('--trim', help='Recortar el video usando --split parts:')
@@ -99,7 +100,8 @@ if __name__ == "__main__":
         makedirs(drout, exist_ok=True)
 
     pargs.tracks = parse_track(pargs.tracks)
+    pargs.tracks_rm = parse_track(pargs.tracks_rm)
 
     mrg = MkvMerge(vo=pargs.vo, und=pargs.und, dry=pargs.dry)
-    mrg.merge(pargs.out, *pargs.files, tracks_selected=pargs.tracks, do_srt=pargs.srt, do_trim=pargs.trim, no_chapters=pargs.no_chapters)
+    mrg.merge(pargs.out, *pargs.files, tracks_rm=pargs.tracks_rm, tracks_selected=pargs.tracks, do_srt=pargs.srt, do_trim=pargs.trim, no_chapters=pargs.no_chapters)
     print("")

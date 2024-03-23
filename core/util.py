@@ -82,6 +82,8 @@ def get_title(file: str) -> str:
     if mtc:
         year = mtc.group(1)
         title = mtc.group(2).strip()
+    if "¿" in title and "?" not in title:
+        title = title + "?"
     if capi:
         title = title + " " + capi
     if year:
