@@ -604,7 +604,7 @@ class MkvMerge:
             for i, s in enumerate(src):
                 if i != main_video.source and isinstance(s, Mkv):
                     for v in s.tracks.video:
-                        s.ban("# KO {}".format(v))
+                        v.ban("# KO {}".format(v))
 
         subtitles = self.get_tracks(src).subtitles
 
