@@ -339,6 +339,8 @@ class VideoTrack(Track):
             lb = "MPEG-4p2"
         if "WMV3" in self.codec:
             lb = "wmv"
+        if self.codec == "AV1":
+            lb = "AV1"
         if lb is None:
             raise Exception("codec no reconocido %s" % self.codec)
         if self.pixel_dimensions:
