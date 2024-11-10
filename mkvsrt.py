@@ -5,14 +5,13 @@ from core.mkv import Mkv
 from core.shell import Shell
 from core.sub import Sub
 from core.track import MKVLANG
-from os import remove
 from os.path import basename
 from core.util import TMP
 
 
 if __name__ == "__main__":
     langs = sorted(k for k in MKVLANG.code.keys() if len(k) == 2)
-    parser = argparse.ArgumentParser("Estrae el subtitulo principal y lo convirte a srt para TV antiguas")
+    parser = argparse.ArgumentParser("Extrae el subtitulo principal y lo convierte a srt para TV antiguas")
     parser.add_argument('files', nargs="+", help='Ficheros mkv')
     pargs = parser.parse_args()
     for file in pargs.files:

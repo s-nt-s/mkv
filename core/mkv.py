@@ -399,21 +399,22 @@ class Mkv:
         for a in self.tracks.audio:
             if a.lang in LANG_ES:
                 isEs = True
-        full = None
-        forc = None
-        for s in self.tracks.subtitles:
-            if s.codec == "SubRip/SRT" and s.lang in LANG_ES:
+        full = []
+        forc = []
+        for codec in ("SubRip/SRT", None):
+            for s in self.tracks.subtitles:
+                if s.lang not in LANG_ES:
+                    continue
+                if codec is not None and s.codec != codec:
+                    continue
                 if s.forced_track:
-                    forc = s
+                    forc.append(s)
                 else:
-                    full = s
-        track = None
-        if isEs and forc:
-            track = forc
-        if track is None and full:
-            track = full
-        if track is not None:
-            return track
+                    full.append(s)
+        if isEs and len(forc):
+            return forc[0]
+        if len(full):
+            return full[0]
 
 
 class MkvMerge:
