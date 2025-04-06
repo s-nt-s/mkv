@@ -134,7 +134,7 @@ class Mkv:
                     track.set_lang("eng")
                 if track.isUnd and track.track_name is not None:
                     st_name = set(track.track_name.lower().split())
-                    if st_name.intersection({"español", "castellano", "latino"}):
+                    if st_name.intersection({"español", "castellano", "latino", "latam"}):
                         print("# und -> es {}".format(track))
                         track.set_lang("spa")
                     if st_name.intersection({"ingles", "english"}):

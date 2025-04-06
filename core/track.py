@@ -226,7 +226,8 @@ class Track(BannableItem):
                     return True
         if self.track_name is None or self.lang not in LANG_ES:
             return False
-        if set({'latin', 'latino', 'latinoamericano'}).intersection(self.track_name.lower().split()):
+        s_tn = set(re.split(r"\b", self.track_name.lower()))
+        if s_tn.intersection({'latin', 'latino', 'latinoamericano', 'latam'}):
             return True
         if self.track_name == "LRL":
             return True
