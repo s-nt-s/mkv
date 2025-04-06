@@ -1,7 +1,6 @@
 import re
 
 import pysubs2
-from functools import cache
 from typing import Tuple, List
 from os.path import splitext
 
@@ -16,6 +15,7 @@ re_nosub = re.compile("|".join(x.pattern for x in map(re.compile, [
     r"UNA?.*ORIGINAL DE NETFLIX",
     r"PRODUCID[OA] POR NETFLIX",
     r"EN COLABORACIÓN CON NETFLIX",
+    r"UNA SERIE.* DE NETFLIX"
 ])))
 
 class SSAFile(pysubs2.SSAFile):

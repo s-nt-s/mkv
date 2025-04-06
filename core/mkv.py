@@ -259,9 +259,9 @@ class Mkv:
             if s.lines == 0:
                 s.ban("# RM {} por estar vacio".format(s))
                 continue
-            if s.lines == 1 and s.srt_lines():
-                s.ban("# RM {} por tener una solo linea {}".format(s, s.srt_lines()[0]))
-                continue
+            #if s.lines == 1 and s.srt_lines():
+            #    s.ban("# RM {} por tener una solo linea {}".format(s, s.srt_lines()[0]))
+            #    continue
             if s.lang and s.lang not in self.main_lang:# or (s.lang not in set(LANG_SB).intersection(self.main_lang)):
                 s.ban("# RM {} por idioma".format(s))
                 continue
