@@ -271,6 +271,8 @@ class Track(BannableItem):
             return "TrueHD"
         if "WMV3" in self.codec:
             return "wmv"
+        if self.codec in ("PCM", ):
+            return "pcm"
         raise Exception(f"Extensión no encontrada para: {self.codec}")
 
     def set_lang(self, lang):
