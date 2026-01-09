@@ -251,6 +251,8 @@ class Track(BannableItem):
             return "srt"
         if self.type == "subtitles" and "PGS" in self.codec:
             return "pgs"
+        if self.codec in ("E-AC-3", ):
+            return "eac3"
         if self.codec in ("AC-3", "AC-3 Dolby Surround EX", "E-AC-3"):
             return "ac3"
         if self.codec in ("DTS", "DTS-ES", "DTS-HD Master Audio", "DTS-HD High Resolution Audio"):
@@ -545,7 +547,7 @@ class TrackIter:
     @property
     def ids(self) -> Tuple[int]:
         return tuple(sorted(map(lambda x: x.id, self)))
-    
+
     @property
     def subtitles(self) -> Tuple['SubTrack']:
         return self.get_tracks('subtitles')
