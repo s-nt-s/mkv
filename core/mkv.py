@@ -584,7 +584,15 @@ class MkvMerge:
                 continue
             ext = f.rsplit(".", 1)[-1].lower()
             if ext in ("mkv", "mp4", "avi"):
-                mkv = Mkv(f, source=len(src), und=self.und, vo=self.vo, tracks_selected=tracks_selected, tracks_rm=tracks_rm, trim=trim)
+                mkv = Mkv(
+                    f,
+                    source=len(src),
+                    und=self.und,
+                    vo=self.vo,
+                    tracks_selected=tracks_selected,
+                    tracks_rm=tracks_rm,
+                    trim=trim
+                )
                 src.append(mkv)
                 cm_tag.extend(mkv.tags.get_tag('COMMENT', split_lines=True))
             else:
