@@ -86,14 +86,14 @@ if __name__ == "__main__":
             sys.exit("No existe: " + file)
 
     guess_args(pargs)
-    
+
     if pargs.out is None or isdir(pargs.out):
         sys.exit("No se puede adivinar el nombre de fichero destino, proporcionelo usando --out")
     if pargs.out in pargs.files:
         sys.exit("El fichero de entrada y salida no pueden ser el mismo")
     if isfile(pargs.out):
         sys.exit("Ya existe: " + pargs.out)
-        
+
     drout = dirname(realpath(pargs.out))
     if drout and not isdir(drout):
         print("$ mkdir -p '{}'".format(dirname(pargs.out)))
@@ -102,6 +102,18 @@ if __name__ == "__main__":
     pargs.tracks = parse_track(pargs.tracks)
     pargs.tracks_rm = parse_track(pargs.tracks_rm)
 
-    mrg = MkvMerge(vo=pargs.vo, und=pargs.und, dry=pargs.dry)
-    mrg.merge(pargs.out, *pargs.files, tracks_rm=pargs.tracks_rm, tracks_selected=pargs.tracks, do_srt=pargs.srt, do_trim=pargs.trim, no_chapters=pargs.no_chapters)
+    mrg = MkvMerge(
+        vo=pargs.vo,
+        und=pargs.und,
+        dry=pargs.dry
+    )
+    mrg.merge(
+        pargs.out,
+        *pargs.files,
+        tracks_rm=pargs.tracks_rm,
+        tracks_selected=pargs.tracks,
+        do_srt=pargs.srt,
+        do_trim=pargs.trim,
+        no_chapters=pargs.no_chapters
+    )
     print("")
