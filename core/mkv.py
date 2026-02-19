@@ -11,7 +11,7 @@ from textwrap import dedent
 from .shell import Shell, Args
 from .mkvutil import MkvInfo, Duration, Trim
 from .track import Track, SubTrack, Attachment, TrackList, TrackTuple
-from .util import LANG_ES, LANG_SB, TMP, SetList, get_title, get_encoding_type, BadType
+from .util import LANG_ES, LANG_SB, LANG_EN, TMP, SetList, get_title, get_encoding_type, BadType
 from .mkvcore import MkvCore
 from .sub import Sub
 
@@ -124,26 +124,26 @@ class Mkv:
                         track.track_name = "Español latino"
                     elif "latino" not in track.track_name.lower():
                         track.track_name = track.track_name + " (latino)"
-                    print("# lat -> es {}".format(track))
+                    print("# lat -> spa {}".format(track))
                     track.set_lang("spa")
-                if track.lang in ("es-419", ):
+                if track.lang != 'spa' and track.lang in (("es-419", ) + LANG_ES):
                     print("# {} -> es {}".format(track.lang, track))
                     track.set_lang("spa")
-                if track.lang in ('en', 'en-US'):
+                if track.lang != 'eng' and track.lang in ('en', 'en-US') + LANG_EN:
                     print("# {} -> eng {}".format(track.lang, track))
                     track.set_lang("eng")
                 if track.isUnd and track.track_name is not None:
                     st_name = set(track.track_name.lower().split())
                     if st_name.intersection({"español", "castellano", "latino", "latam"}):
-                        print("# und -> es {}".format(track))
+                        print("# und -> spa {}".format(track))
                         track.set_lang("spa")
                     if st_name.intersection({"ingles", "english"}):
-                        print("# und -> en {}".format(track))
+                        print("# und -> eng {}".format(track))
                         track.set_lang("eng")
                 arr.append(track)
             if len(arr.audio) == 1 and arr.audio[0].lang == 'und' and fl_name.intersection({"español", "castellano"}):
                 track = arr.audio[0]
-                print("# und -> es {}".format(track))
+                print("# und -> spa {}".format(track))
                 track.set_lang("spa")
 
             for track in arr:

@@ -8,7 +8,8 @@ from chardet import detect
 
 re_sp = re.compile(r"\s+")
 LANG_ES = ("es", "spa", "es-ES")
-LANG_SB = LANG_ES + ("en", "eng", "en-EN")
+LANG_EN = ("en", "eng", "en-EN")
+LANG_SB = LANG_ES + LANG_EN
 
 
 class MyTMP:
