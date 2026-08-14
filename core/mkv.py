@@ -140,6 +140,9 @@ class Mkv:
                     if st_name.intersection({"ingles", "english"}):
                         print("# und -> eng {}".format(track))
                         track.set_lang("eng")
+                    if st_name.intersection({"arabe", }):
+                        print("# und -> ara {}".format(track))
+                        track.set_lang("ara")
                 arr.append(track)
             if len(arr.audio) == 1 and arr.audio[0].lang == 'und' and fl_name.intersection({"español", "castellano"}):
                 track = arr.audio[0]

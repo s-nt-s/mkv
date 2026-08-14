@@ -114,7 +114,7 @@ class MkvInfoTrackProperties(dict):
 
     @property
     def track_name(self) -> str:
-        return self['track_name']
+        return self.get('track_name', '')
 
     @property
     def default_track(self):

@@ -275,6 +275,8 @@ class Track(BannableItem):
             return "wmv"
         if self.codec in ("PCM", ):
             return "pcm"
+        if self.codec in ("WebVTT", ):
+            return "vtt"
         raise Exception(f"Extensión no encontrada para: {self.codec}")
 
     def set_lang(self, lang):
@@ -392,6 +394,9 @@ class SubTrack(Track):
             self.text_subtitles = True
             return
         if self.text_subtitles is not None:
+            return
+        if self.codec_id in ("S_TEXT/WEBVTT", ):
+            self.text_subtitles = True
             return
         if self.codec_id in ("S_VOBSUB", "S_HDMV/PGS"):
             self.text_subtitles = False
