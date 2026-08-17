@@ -344,6 +344,8 @@ class VideoTrack(Track):
             lb = "HDMV"
         if "MPEG-4p2" in self.codec:
             lb = "MPEG-4p2"
+        if self.codec == "MPEG-1/2":
+            return "MPEG-1-2"
         if "WMV3" in self.codec:
             lb = "wmv"
         if self.codec in ("AV1", "VP9"):
