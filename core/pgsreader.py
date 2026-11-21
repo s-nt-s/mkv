@@ -54,7 +54,10 @@ class PGSReader:
         bytes_ = self.bytes[:]
         while bytes_:
             size = 13 + int(bytes_[11:13].hex(), 16)
-            yield self.make_segment(bytes_[:size])
+            try:
+                yield self.make_segment(bytes_[:size])
+            except IndexError:
+                pass
             bytes_ = bytes_[size:]
 
     def iter_displaysets(self):
